@@ -28,18 +28,36 @@ class PragmaticSeo extends Plugin
             }
         );
 
+        // Register nav item under shared "Pragmatic" group
         Event::on(
             Cp::class,
             Cp::EVENT_REGISTER_CP_NAV_ITEMS,
             function(RegisterCpNavItemsEvent $event) {
-                $event->navItems[] = [
+                $groupKey = null;
+                foreach ($event->navItems as $key => $item) {
+                    if (($item['label'] ?? '') === 'Pragmatic' && isset($item['subnav'])) {
+                        $groupKey = $key;
+                        break;
+                    }
+                }
+
+                if ($groupKey === null) {
+                    $event->navItems[] = [
+                        'label' => 'Pragmatic',
+                        'url' => 'pragmatic-seo',
+                        'icon' => __DIR__ . '/icons/gift.svg',
+                        'subnav' => [],
+                    ];
+                    $groupKey = array_key_last($event->navItems);
+                }
+
+                $event->navItems[$groupKey]['subnav']['seo'] = [
                     'label' => 'SEO',
                     'url' => 'pragmatic-seo/general',
-                    'icon' => '@pragmatic/seo/icon.svg',
-                    'navLabel' => 'Pragmatic',
                 ];
             }
         );
+        
     }
 
 }
