@@ -49,12 +49,15 @@ class PragmaticSeo extends Plugin
                         'subnav' => [],
                     ];
 
-                    // Insert after a specific nav item (e.g. 'entries')
+                    // Insert after the first matching nav item
                     $afterKey = null;
-                    foreach ($event->navItems as $key => $item) {
-                        if (($item['url'] ?? '') === 'users') {
-                            $afterKey = $key;
-                            break;
+                    $insertAfter = ['users', 'assets', 'categories', 'entries'];
+                    foreach ($insertAfter as $target) {
+                        foreach ($event->navItems as $key => $item) {
+                            if (($item['url'] ?? '') === $target) {
+                                $afterKey = $key;
+                                break 2;
+                            }
                         }
                     }
 
