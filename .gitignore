@@ -1,0 +1,23 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+/vendor/
+node_modules/
+
+# Composer
+composer.lock
+
+# Environment
+.env
+.env.*
+
+# Claude Code
+.claude/

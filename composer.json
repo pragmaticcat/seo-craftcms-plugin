@@ -1,0 +1,34 @@
+{
+  "name": "pragmatic/pragmatic-seo",
+  "description": "Pragmatic SEO plugin for Craft CMS",
+  "type": "craft-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.2",
+    "craftcms/cms": "^5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "pragmatic\\seo\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Oriol Noya",
+      "email": "oriolnoya@pragmatic.cat"
+    }
+  ],
+  "support": {
+    "email": "oriolnoya@pragmatic.cat"
+  },
+  "extra": {
+    "name": "Pragmatic SEO",
+    "handle": "pragmatic-seo",
+    "class": "pragmatic\\seo\\PragmaticSeo",
+    "developer": "Pragmatic",
+    "developerUrl": "https://www.pragmatic.cat",
+    "documentationUrl": "https://github.com/pragmaticcat/seo/blob/main/README.md",
+    "hasSettings": false,
+    "hasCpSection": true
+  }
+}

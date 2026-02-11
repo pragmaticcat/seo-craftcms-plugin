@@ -1,0 +1,12 @@
+{% extends parentLayout|default('_layouts/cp') %}
+
+{% set title = title ?? 'SEO' %}
+{% set selectedSubnavItem = 'seo' %}
+{% set selectedTab = craft.app.request.getSegment(2) %}
+
+{% set tabs = {
+  'general': { label: 'General', url: url('pragmatic-seo/general') },
+  'options': { label: 'Opciones', url: url('pragmatic-seo/options') }
+} %}
+
+{% block content %}{% endblock %}
