@@ -2,7 +2,7 @@
   "name": "pragmatic/pragmatic-seo",
   "description": "Pragmatic SEO plugin for Craft CMS",
   "type": "craft-plugin",
-  "license": "proprietary",
+  "license": "MIT",
   "require": {
     "php": ">=8.2",
     "craftcms/cms": "^5.0"
@@ -22,9 +22,9 @@
     "email": "oriolnoya@pragmatic.cat"
   },
   "extra": {
-    "name": "Pragmatic SEO",
     "handle": "pragmatic-seo",
     "class": "pragmatic\\seo\\PragmaticSeo",
+    "name": "Pragmatic SEO",
     "developer": "Pragmatic",
     "developerUrl": "https://www.pragmatic.cat",
     "documentationUrl": "https://github.com/pragmaticcat/pragmatic-seo/blob/main/README.md",
