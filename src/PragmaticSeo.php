@@ -25,20 +25,19 @@ class PragmaticSeo extends Plugin
                 $event->rules['pragmatic-seo/options'] = 'pragmatic-seo/default/options';
             }
         );
-    }
 
-    public function getCpNavItem(): array
-    {
-        $item = parent::getCpNavItem();
-        $item['label'] = 'SEO';
-        $item['navLabel'] = 'Pragmatic';
-        $item['subnav'] = [
-            'seo' => [
-                'label' => 'SEO',
-                'url' => 'pragmatic-seo/general',
-            ],
-        ];
-
-        return $item;
+        Event::on(
+            Cp::class,
+            Cp::EVENT_REGISTER_CP_NAV_ITEMS,
+            function(RegisterCpNavItemsEvent $event) {
+                $event->navItems[] = [
+                    'label' => 'SEO',
+                    'url' => 'pragmatic-seo/general',
+                    'icon' => '@pragmatic/seo/icon.svg',
+                    'navLabel' => 'Pragmatic',
+                ];
+            }
+        );
     }
+    
 }
