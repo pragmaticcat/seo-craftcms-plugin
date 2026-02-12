@@ -120,6 +120,42 @@ class DefaultController extends Controller
         }
 
         $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+        $sectionsById = [];
+        $availableSectionIds = [];
+        $sectionEntries = Entry::find()
+            ->siteId($siteId)
+            ->status(null);
+        if ($search !== '') {
+            $sectionEntries->search($search);
+        }
+        foreach ($sectionEntries->all() as $entry) {
+            if (!$this->entryHasSeoField($entry)) {
+                continue;
+            }
+
+            $entrySection = $entry->getSection();
+            if (!$entrySection) {
+                continue;
+            }
+
+            $entrySectionId = (int)$entrySection->id;
+            $availableSectionIds[$entrySectionId] = true;
+            $sectionsById[$entrySectionId] = $entrySection;
+        }
+
+        $sections = [];
+        foreach (Craft::$app->entries->getAllSections() as $section) {
+            if (isset($availableSectionIds[(int)$section->id])) {
+                $sections[] = $section;
+            }
+        }
+        if ($sectionId && !isset($availableSectionIds[$sectionId])) {
+            $selectedSection = Craft::$app->entries->getSectionById($sectionId);
+            if ($selectedSection) {
+                $sections[] = $selectedSection;
+            }
+        }
+
         $entryQuery = Entry::find()->siteId($siteId)->status(null);
         if ($sectionId) {
             $entryQuery->sectionId($sectionId);
@@ -186,7 +222,7 @@ class DefaultController extends Controller
         return $this->renderTemplate('pragmatic-seo/content', [
             'rows' => $pageRows,
             'entryRowCounts' => $entryRowCounts,
-            'sections' => Craft::$app->entries->getAllSections(),
+            'sections' => $sections,
             'sectionId' => $sectionId,
             'imageElementsById' => $imageElementsById,
             'search' => $search,
@@ -195,6 +231,17 @@ class DefaultController extends Controller
             'totalPages' => $totalPages,
             'total' => $total,
         ]);
+    }
+
+    private function entryHasSeoField(Entry $entry): bool
+    {
+        foreach ($entry->getFieldLayout()?->getCustomFields() ?? [] as $field) {
+            if ($field instanceof SeoField) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function actionSitemap(): Response
