@@ -23,6 +23,12 @@ class PragmaticSeo extends Plugin
     {
         parent::init();
 
+        Craft::$app->i18n->translations['pragmatic-seo'] = [
+            'class' => \yii\i18n\PhpMessageSource::class,
+            'basePath' => __DIR__ . '/translations',
+            'forceTranslation' => true,
+        ];
+
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
@@ -57,14 +63,15 @@ class PragmaticSeo extends Plugin
             $this->ensureSeoFieldsAreTranslatable();
         });
 
-        // Register nav item under shared "Pragmatic" group
+        // Register nav item under shared "Tools" group
         Event::on(
             Cp::class,
             Cp::EVENT_REGISTER_CP_NAV_ITEMS,
             function(RegisterCpNavItemsEvent $event) {
+                $toolsLabel = Craft::t('pragmatic-seo', 'Tools');
                 $groupKey = null;
                 foreach ($event->navItems as $key => $item) {
-                    if (($item['label'] ?? '') === 'Pragmatic' && isset($item['subnav'])) {
+                    if (($item['label'] ?? '') === $toolsLabel && isset($item['subnav'])) {
                         $groupKey = $key;
                         break;
                     }
@@ -72,7 +79,7 @@ class PragmaticSeo extends Plugin
 
                 if ($groupKey === null) {
                     $newItem = [
-                        'label' => 'Pragmatic',
+                        'label' => $toolsLabel,
                         'url' => 'pragmatic-seo/content',
                         'icon' => __DIR__ . '/icons/icon.svg',
                         'subnav' => [],
