@@ -38,8 +38,7 @@ class DefaultController extends Controller
     {
         $this->cleanupLegacyAssetMetaTable();
         $request = Craft::$app->getRequest();
-        $usedParam = $request->getQueryParam('used');
-        $usedOnly = $usedParam === null ? true : $usedParam === '1';
+        $usedOnly = $this->parseUsedFilter($request->getQueryParam('used'));
         $page = max(1, (int)$request->getQueryParam('page', 1));
         $allowedPerPage = [50, 100, 250];
         $perPage = (int)$request->getQueryParam('perPage', 50);
@@ -81,9 +80,13 @@ class DefaultController extends Controller
             $fieldHandles = $this->assetTextFieldHandles($asset);
             $fieldValues = [];
             foreach ($textColumns as $handle => $meta) {
-                $fieldValues[$handle] = in_array($handle, $fieldHandles, true)
-                    ? (string)$asset->getFieldValue($handle)
-                    : null;
+                if ($handle === '__native_alt__') {
+                    $fieldValues[$handle] = $this->getAssetAltValue($asset);
+                } else {
+                    $fieldValues[$handle] = in_array($handle, $fieldHandles, true)
+                        ? (string)$asset->getFieldValue($handle)
+                        : null;
+                }
             }
 
             $rows[] = [
@@ -109,7 +112,6 @@ class DefaultController extends Controller
         $request = Craft::$app->getRequest();
         $search = (string)$request->getParam('q', '');
         $sectionId = (int)$request->getParam('section', 0);
-        $fieldFilter = (string)$request->getParam('field', '');
         $page = max(1, (int)$request->getParam('page', 1));
         $perPage = (int)$request->getParam('perPage', 50);
         if (!in_array($perPage, [50, 100, 250], true)) {
@@ -130,9 +132,6 @@ class DefaultController extends Controller
         foreach ($entries as $entry) {
             foreach ($entry->getFieldLayout()?->getCustomFields() ?? [] as $field) {
                 if (!$field instanceof SeoField) {
-                    continue;
-                }
-                if ($fieldFilter !== '' && $field->handle !== $fieldFilter) {
                     continue;
                 }
 
@@ -158,6 +157,25 @@ class DefaultController extends Controller
         $offset = ($page - 1) * $perPage;
         $pageRows = array_slice($rows, $offset, $perPage);
 
+        $imageIds = [];
+        foreach ($pageRows as $row) {
+            $imageId = $row['value']->imageId ?? null;
+            if ($imageId) {
+                $imageIds[] = (int)$imageId;
+            }
+        }
+        $imageElementsById = [];
+        if (!empty($imageIds)) {
+            $images = Asset::find()
+                ->id(array_values(array_unique($imageIds)))
+                ->status(null)
+                ->siteId($siteId)
+                ->all();
+            foreach ($images as $image) {
+                $imageElementsById[(int)$image->id] = $image;
+            }
+        }
+
         $entryRowCounts = [];
         foreach ($pageRows as $row) {
             $entryId = $row['entry']->id;
@@ -169,8 +187,7 @@ class DefaultController extends Controller
             'entryRowCounts' => $entryRowCounts,
             'sections' => Craft::$app->entries->getAllSections(),
             'sectionId' => $sectionId,
-            'fieldFilter' => $fieldFilter,
-            'fieldOptions' => $this->getSeoFieldOptions(),
+            'imageElementsById' => $imageElementsById,
             'search' => $search,
             'perPage' => $perPage,
             'page' => $page,
@@ -216,7 +233,7 @@ class DefaultController extends Controller
         $entry->setFieldValue($fieldHandle, [
             'title' => trim((string)($values['title'] ?? '')),
             'description' => trim((string)($values['description'] ?? '')),
-            'imageId' => ($values['imageId'] ?? '') !== '' ? (int)$values['imageId'] : null,
+            'imageId' => $this->normalizeElementSelectValue($values['imageId'] ?? null),
             'imageDescription' => trim((string)($values['imageDescription'] ?? '')),
         ]);
 
@@ -255,6 +272,10 @@ class DefaultController extends Controller
             $fieldsData = $data['fields'] ?? [];
             $assetTextHandles = $this->assetTextFieldHandles($asset);
             foreach ($fieldsData as $handle => $value) {
+                if ((string)$handle === '__native_alt__') {
+                    $this->setAssetAltValue($asset, trim((string)$value));
+                    continue;
+                }
                 if (!in_array((string)$handle, $assetTextHandles, true)) {
                     continue;
                 }
@@ -285,6 +306,13 @@ class DefaultController extends Controller
     private function collectAssetTextColumns(array $assets): array
     {
         $columns = [];
+        if ($this->assetsSupportNativeAlt($assets)) {
+            $columns['__native_alt__'] = [
+                'handle' => '__native_alt__',
+                'name' => 'Alt',
+            ];
+        }
+
         foreach ($assets as $asset) {
             foreach ($asset->getFieldLayout()?->getCustomFields() ?? [] as $field) {
                 if (!$this->isSupportedAssetTextField($field)) {
@@ -348,25 +376,58 @@ class DefaultController extends Controller
         $db->createCommand()->dropTable(self::LEGACY_ASSET_META_TABLE)->execute();
     }
 
-    private function getSeoFieldOptions(): array
+    private function parseUsedFilter(mixed $rawValue): bool
     {
-        $options = [
-            ['value' => '', 'label' => 'All SEO fields'],
-        ];
-
-        $fields = array_values(array_filter(
-            Craft::$app->getFields()->getAllFields(),
-            fn($field) => $field instanceof SeoField
-        ));
-        usort($fields, fn(SeoField $a, SeoField $b) => strcasecmp($a->name, $b->name));
-
-        foreach ($fields as $field) {
-            $options[] = [
-                'value' => $field->handle,
-                'label' => sprintf('%s (%s)', $field->name, $field->handle),
-            ];
+        if ($rawValue === null || $rawValue === '') {
+            return true;
         }
+        if (is_array($rawValue)) {
+            $rawValue = end($rawValue);
+        }
+        return in_array((string)$rawValue, ['1', 'true', 'on'], true);
+    }
 
-        return $options;
+    private function normalizeElementSelectValue(mixed $value): ?int
+    {
+        if (is_array($value)) {
+            $value = reset($value);
+        }
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+        return (int)$value;
+    }
+
+    private function assetsSupportNativeAlt(array $assets): bool
+    {
+        foreach ($assets as $asset) {
+            if ($this->hasAssetAltAttribute($asset)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function hasAssetAltAttribute(Asset $asset): bool
+    {
+        return in_array('alt', $asset->attributes(), true) || method_exists($asset, 'getAltText');
+    }
+
+    private function getAssetAltValue(Asset $asset): ?string
+    {
+        if (method_exists($asset, 'getAltText')) {
+            return (string)$asset->getAltText();
+        }
+        if ($this->hasAssetAltAttribute($asset)) {
+            return (string)$asset->getAttribute('alt');
+        }
+        return null;
+    }
+
+    private function setAssetAltValue(Asset $asset, string $value): void
+    {
+        if ($this->hasAssetAltAttribute($asset)) {
+            $asset->setAttribute('alt', $value);
+        }
     }
 }

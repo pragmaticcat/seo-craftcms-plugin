@@ -7,11 +7,11 @@
 {% block content %}
   <form id="images-filter-form" method="get" action="{{ url('pragmatic-seo/images') }}" accept-charset="UTF-8" style="margin-bottom: 16px;">
     <input type="hidden" name="page" value="1">
-    <input type="hidden" name="used" value="0">
+    <input type="hidden" id="used-filter-value" name="used" value="{{ usedOnly ? 1 : 0 }}">
     <div class="flex" style="gap: 12px; align-items: flex-end;">
       {{ forms.lightswitchField({
         id: 'used-only',
-        name: 'used',
+        name: 'usedSwitch',
         on: usedOnly,
         value: 1,
         label: 'Mostrar solo imagenes usadas',
@@ -118,11 +118,13 @@
 
 {% js %}
   const imagesFilterForm = document.getElementById('images-filter-form');
-  const usedOnlySwitch = imagesFilterForm?.querySelector('#used-only') || imagesFilterForm?.querySelector('input[type="checkbox"][name="used"]');
+  const usedOnlySwitch = imagesFilterForm?.querySelector('input[type="checkbox"][name="usedSwitch"]');
+  const usedFilterValue = imagesFilterForm?.querySelector('#used-filter-value');
   const perPageSelect = imagesFilterForm?.querySelector('select[name="perPage"]');
   const pageInput = imagesFilterForm?.querySelector('input[name="page"]');
   if (imagesFilterForm && usedOnlySwitch) {
     usedOnlySwitch.addEventListener('change', () => {
+      if (usedFilterValue) usedFilterValue.value = usedOnlySwitch.checked ? '1' : '0';
       if (pageInput) pageInput.value = '1';
       imagesFilterForm.submit();
     });

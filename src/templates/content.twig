@@ -28,16 +28,6 @@
         </div>
       </div>
       <div>
-        <label for="field">Field</label>
-        <div class="select">
-          <select id="field" name="field">
-            {% for option in fieldOptions %}
-              <option value="{{ option.value }}" {{ option.value == fieldFilter ? 'selected' : '' }}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      <div>
         <label for="perPage">Per page</label>
         <div class="select">
           <select id="perPage" name="perPage">
@@ -53,7 +43,7 @@
   <form method="post" accept-charset="UTF-8">
     {{ csrfInput() }}
     {{ actionInput('pragmatic-seo/default/save-content') }}
-    {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId, field: fieldFilter }) }}
+    {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId }) }}
 
     <table class="data fullwidth" style="margin-top: 16px;">
       <thead>
@@ -62,7 +52,7 @@
           <th>Field</th>
           <th>Titulo</th>
           <th>Descripcion</th>
-          <th>Imagen (Asset ID)</th>
+          <th>Imagen</th>
           <th>Descripcion de imagen</th>
           <th>Action</th>
         </tr>
@@ -93,7 +83,14 @@
               <textarea class="text fullwidth" name="entries[{{ rowIndex }}][values][description]" rows="2">{{ row.value.description ?? '' }}</textarea>
             </td>
             <td>
-              <input class="text fullwidth" type="number" name="entries[{{ rowIndex }}][values][imageId]" value="{{ row.value.imageId ?? '' }}">
+              {% set imageElement = row.value.imageId ? (imageElementsById[row.value.imageId] ?? null) : null %}
+              {{ forms.elementSelect({
+                id: 'entry-seo-image-' ~ rowIndex,
+                name: "entries[#{rowIndex}][values][imageId]",
+                elementType: 'craft\\\\elements\\\\Asset',
+                elements: imageElement ? [imageElement] : [],
+                limit: 1,
+              }) }}
             </td>
             <td>
               <input class="text fullwidth" name="entries[{{ rowIndex }}][values][imageDescription]" value="{{ row.value.imageDescription ?? '' }}">
@@ -115,13 +112,13 @@
       {% if page == 1 %}
         <span class="btn disabled">Prev</span>
       {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId, field: fieldFilter }) }}">Prev</a>
+        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId }) }}">Prev</a>
       {% endif %}
       <div>Page {{ page }} / {{ totalPages }}</div>
       {% if page == totalPages %}
         <span class="btn disabled">Next</span>
       {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId, field: fieldFilter }) }}">Next</a>
+        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId }) }}">Next</a>
       {% endif %}
     </div>
   </div>
@@ -131,7 +128,6 @@
       const filterForm = document.getElementById('entries-filter');
       const searchInput = document.getElementById('q');
       const sectionSelect = document.getElementById('section');
-      const fieldSelect = document.getElementById('field');
       const perPageSelect = document.getElementById('perPage');
 
       if (filterForm) {
@@ -148,7 +144,7 @@
             searchTimer = setTimeout(resetPageAndSubmit, 300);
           });
         }
-        [sectionSelect, fieldSelect, perPageSelect].forEach(function(el) {
+        [sectionSelect, perPageSelect].forEach(function(el) {
           if (el) el.addEventListener('change', resetPageAndSubmit);
         });
       }
