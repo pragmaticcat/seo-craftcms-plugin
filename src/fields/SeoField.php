@@ -8,7 +8,7 @@ use craft\base\Field;
 use craft\db\Schema;
 use craft\elements\Asset;
 use craft\helpers\Json;
-use yii\db\ExpressionInterface;
+use GraphQL\Type\Definition\Type;
 
 class SeoField extends Field
 {
@@ -125,14 +125,14 @@ class SeoField extends Field
         ]);
     }
 
-    public function getContentGqlType(): array|string|null
+    public function getContentGqlType(): Type|array
     {
-        return null;
+        return Type::string();
     }
 
-    public function getContentGqlMutationArgumentType(): array|string|ExpressionInterface|null
+    public function getContentGqlMutationArgumentType(): Type|array
     {
-        return null;
+        return Type::string();
     }
 
     private function normalizeImageId(mixed $value): ?int
