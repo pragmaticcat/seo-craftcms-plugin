@@ -15,6 +15,7 @@ use yii\db\Schema;
 class SeoField extends Field
 {
     private const STORAGE_TABLE = '{{%pragmaticseo_seo_blocks}}';
+    private const STORAGE_UNIQUE_INDEX = 'pragmaticseo_seo_blocks_unique';
     private static bool $storageReady = false;
 
     public string $translationMethod = self::TRANSLATION_METHOD_SITE;
@@ -184,6 +185,7 @@ class SeoField extends Field
 
         $db = Craft::$app->getDb();
         if ($db->tableExists(self::STORAGE_TABLE)) {
+            $this->ensureStorageIndexes();
             return;
         }
 
@@ -203,12 +205,22 @@ class SeoField extends Field
             'uid' => 'char(36) NOT NULL',
         ])->execute();
 
-        $db->createCommand()->createIndex(
-            null,
-            self::STORAGE_TABLE,
-            ['canonicalId', 'siteId', 'fieldId'],
-            true
-        )->execute();
+        $this->ensureStorageIndexes();
+    }
+
+    private function ensureStorageIndexes(): void
+    {
+        $db = Craft::$app->getDb();
+        try {
+            $db->createCommand()->createIndex(
+                self::STORAGE_UNIQUE_INDEX,
+                self::STORAGE_TABLE,
+                ['canonicalId', 'siteId', 'fieldId'],
+                true
+            )->execute();
+        } catch (\Throwable) {
+            // Index may already exist (reinstall/partial setup); safe to ignore.
+        }
     }
 
     private function loadStoredValue(int $elementId, int $siteId): ?SeoFieldValue
