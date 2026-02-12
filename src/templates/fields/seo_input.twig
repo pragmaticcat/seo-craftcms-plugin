@@ -27,3 +27,17 @@
   name: field.handle ~ '[imageDescription]',
   value: value.imageDescription,
 }) }}
+
+{{ forms.lightswitchField({
+  label: 'Sitemap: visible',
+  name: field.handle ~ '[sitemapEnabled]',
+  on: value.sitemapEnabled is same as(false) ? false : true,
+  value: 1,
+}) }}
+
+{{ forms.lightswitchField({
+  label: 'Sitemap: incluir imagenes',
+  name: field.handle ~ '[sitemapIncludeImages]',
+  on: value.sitemapIncludeImages is same as(true),
+  value: 1,
+}) }}

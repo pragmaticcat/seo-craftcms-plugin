@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{% for row in urls %}
+  <url>
+    <loc>{{ row.loc|e('xml') }}</loc>
+    {% if row.lastmod %}
+    <lastmod>{{ row.lastmod|e('xml') }}</lastmod>
+    {% endif %}
+  </url>
+{% endfor %}
+</urlset>

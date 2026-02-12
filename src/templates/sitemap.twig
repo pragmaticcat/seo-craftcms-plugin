@@ -1,0 +1,111 @@
+{% extends 'pragmatic-seo/_layout' %}
+{% import "_includes/forms" as forms %}
+
+{% set title = 'Sitemap' %}
+{% set selectedTab = 'sitemap' %}
+
+{% block content %}
+  <form method="post" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('pragmatic-seo/default/save-sitemap') }}
+    {{ redirectInput('pragmatic-seo/sitemap') }}
+
+    {% if entryTypeRows is empty %}
+      <p>No hay entry types con un field SEO en su layout.</p>
+    {% else %}
+      <table class="data fullwidth">
+        <thead>
+          <tr>
+            <th>Entry Type</th>
+            <th>Visible en sitemap</th>
+            <th>Incluir imagenes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in entryTypeRows %}
+            {% set rowId = 'entry-type-' ~ row.entryTypeId %}
+            <tr>
+              <td>
+                <details>
+                  <summary><strong>{{ row.entryTypeName }}</strong> <span class="light">({{ row.seoHandle }})</span></summary>
+                  <div style="margin-top: 8px;">
+                    <table class="data fullwidth">
+                      <thead>
+                        <tr>
+                          <th>Entry</th>
+                          <th>Visible en sitemap</th>
+                          <th>Incluir imagenes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for entryRow in row.entries %}
+                          {% set entry = entryRow.entry %}
+                          <tr>
+                            <td>
+                              <a href="#" class="js-entry-slideout" data-entry-id="{{ entry.id }}">{{ entry.title|default('Entry #' ~ entry.id) }}</a>
+                            </td>
+                            <td>
+                              <input type="hidden" name="entries[{{ entry.id }}][enabled]" value="0">
+                              {{ forms.lightswitch({
+                                name: "entries[#{entry.id}][enabled]",
+                                on: entryRow.enabled,
+                                value: 1,
+                              }) }}
+                            </td>
+                            <td>
+                              <input type="hidden" name="entries[{{ entry.id }}][includeImages]" value="0">
+                              {{ forms.lightswitch({
+                                name: "entries[#{entry.id}][includeImages]",
+                                on: entryRow.includeImages,
+                                value: 1,
+                              }) }}
+                              <input type="hidden" name="entries[{{ entry.id }}][seoHandle]" value="{{ row.seoHandle }}">
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </td>
+              <td>
+                <input type="hidden" name="entryTypes[{{ row.entryTypeId }}][enabled]" value="0">
+                {{ forms.lightswitch({
+                  name: "entryTypes[#{row.entryTypeId}][enabled]",
+                  on: row.settings.enabled,
+                  value: 1,
+                }) }}
+              </td>
+              <td>
+                <input type="hidden" name="entryTypes[{{ row.entryTypeId }}][includeImages]" value="0">
+                {{ forms.lightswitch({
+                  name: "entryTypes[#{row.entryTypeId}][includeImages]",
+                  on: row.settings.includeImages,
+                  value: 1,
+                }) }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="buttons" style="margin-top: 16px;">
+        <button type="submit" class="btn submit">Guardar</button>
+      </div>
+    {% endif %}
+  </form>
+
+  {% js %}
+    document.querySelectorAll('.js-entry-slideout').forEach(function(link) {
+      link.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        const entryId = parseInt(link.getAttribute('data-entry-id'), 10);
+        if (!entryId || !window.Craft) return;
+        Craft.createElementEditor('craft\\elements\\Entry', {
+          elementId: entryId,
+          slideout: true
+        });
+      });
+    });
+  {% endjs %}
+{% endblock %}

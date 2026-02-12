@@ -59,6 +59,8 @@ class SeoField extends Field
             'description' => (string)($value['description'] ?? $this->defaultDescription),
             'imageId' => $this->normalizeImageId($value['imageId'] ?? null) ?? $this->defaultImageId,
             'imageDescription' => (string)($value['imageDescription'] ?? $this->defaultImageDescription),
+            'sitemapEnabled' => array_key_exists('sitemapEnabled', $value) ? (bool)$value['sitemapEnabled'] : null,
+            'sitemapIncludeImages' => array_key_exists('sitemapIncludeImages', $value) ? (bool)$value['sitemapIncludeImages'] : null,
         ]);
     }
 
@@ -74,6 +76,8 @@ class SeoField extends Field
                 'description' => (string)($value['description'] ?? ''),
                 'imageId' => $this->normalizeImageId($value['imageId'] ?? null),
                 'imageDescription' => (string)($value['imageDescription'] ?? ''),
+                'sitemapEnabled' => array_key_exists('sitemapEnabled', $value) ? (bool)$value['sitemapEnabled'] : null,
+                'sitemapIncludeImages' => array_key_exists('sitemapIncludeImages', $value) ? (bool)$value['sitemapIncludeImages'] : null,
             ]);
         }
 
@@ -82,6 +86,8 @@ class SeoField extends Field
             'description' => '',
             'imageId' => null,
             'imageDescription' => '',
+            'sitemapEnabled' => null,
+            'sitemapIncludeImages' => null,
         ]);
     }
 

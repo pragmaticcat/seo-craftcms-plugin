@@ -29,7 +29,17 @@ class PragmaticSeo extends Plugin
                 $event->rules['pragmatic-seo/images'] = 'pragmatic-seo/default/images';
                 $event->rules['pragmatic-seo/options'] = 'pragmatic-seo/default/options';
                 $event->rules['pragmatic-seo/content'] = 'pragmatic-seo/default/content';
+                $event->rules['pragmatic-seo/sitemap'] = 'pragmatic-seo/default/sitemap';
+                $event->rules['pragmatic-seo/sitemap/save'] = 'pragmatic-seo/default/save-sitemap';
                 $event->rules['pragmatic-seo/general'] = 'pragmatic-seo/default/general';
+            }
+        );
+
+        Event::on(
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
+            function (RegisterUrlRulesEvent $event) {
+                $event->rules['sitemap.xml'] = 'pragmatic-seo/default/sitemap-xml';
             }
         );
 

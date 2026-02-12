@@ -17,7 +17,8 @@ use yii\web\Response;
 class DefaultController extends Controller
 {
     private const LEGACY_ASSET_META_TABLE = '{{%pragmaticseo_asset_meta}}';
-    protected int|bool|array $allowAnonymous = false;
+    private const SITEMAP_ENTRYTYPE_TABLE = '{{%pragmaticseo_sitemap_entrytypes}}';
+    protected int|bool|array $allowAnonymous = ['sitemap-xml'];
 
     public function actionIndex(): Response
     {
@@ -194,6 +195,138 @@ class DefaultController extends Controller
             'totalPages' => $totalPages,
             'total' => $total,
         ]);
+    }
+
+    public function actionSitemap(): Response
+    {
+        $this->ensureSitemapEntryTypeTable();
+        $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+        $entryTypeRows = $this->getSitemapEntryTypeRows($siteId);
+
+        return $this->renderTemplate('pragmatic-seo/sitemap', [
+            'entryTypeRows' => $entryTypeRows,
+        ]);
+    }
+
+    public function actionSaveSitemap(): Response
+    {
+        $this->requirePostRequest();
+        $this->ensureSitemapEntryTypeTable();
+        $request = Craft::$app->getRequest();
+        $elements = Craft::$app->getElements();
+        $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+
+        $typeSettings = (array)$request->getBodyParam('entryTypes', []);
+        foreach ($typeSettings as $entryTypeId => $settings) {
+            $this->saveEntryTypeSitemapSettings((int)$entryTypeId, [
+                'enabled' => !empty($settings['enabled']),
+                'includeImages' => !empty($settings['includeImages']),
+            ]);
+        }
+
+        $entryRows = (array)$request->getBodyParam('entries', []);
+        foreach ($entryRows as $entryId => $row) {
+            $entry = Entry::find()
+                ->id((int)$entryId)
+                ->siteId($siteId)
+                ->status(null)
+                ->one();
+            if (!$entry) {
+                continue;
+            }
+
+            $seoHandle = (string)($row['seoHandle'] ?? '');
+            if ($seoHandle === '') {
+                continue;
+            }
+
+            $field = $entry->getFieldLayout()?->getFieldByHandle($seoHandle);
+            if (!$field instanceof SeoField) {
+                continue;
+            }
+
+            $current = $entry->getFieldValue($seoHandle);
+            if (!$current instanceof SeoFieldValue) {
+                $current = $field->normalizeValue($current, $entry);
+            }
+            if (!$current instanceof SeoFieldValue) {
+                $current = new SeoFieldValue();
+            }
+
+            $entry->setFieldValue($seoHandle, [
+                'title' => $current->title,
+                'description' => $current->description,
+                'imageId' => $current->imageId,
+                'imageDescription' => $current->imageDescription,
+                'sitemapEnabled' => !empty($row['enabled']),
+                'sitemapIncludeImages' => !empty($row['includeImages']),
+            ]);
+            $elements->saveElement($entry, false, false);
+        }
+
+        Craft::$app->getSession()->setNotice('Sitemap guardado.');
+        return $this->redirectToPostedUrl();
+    }
+
+    public function actionSitemapXml(): Response
+    {
+        $site = Craft::$app->getSites()->getCurrentSite();
+        $siteId = $site->id;
+        $baseUrl = rtrim((string)$site->baseUrl, '/');
+
+        $entryTypeRows = $this->getSitemapEntryTypeRows($siteId);
+        $urls = [];
+
+        foreach ($entryTypeRows as $typeRow) {
+            if (empty($typeRow['settings']['enabled'])) {
+                continue;
+            }
+
+            $entries = Entry::find()
+                ->typeId((int)$typeRow['entryTypeId'])
+                ->siteId($siteId)
+                ->status('live')
+                ->limit(null)
+                ->all();
+
+            foreach ($entries as $entry) {
+                $seoHandle = (string)$typeRow['seoHandle'];
+                $seoValue = $entry->getFieldValue($seoHandle);
+                if (!$seoValue instanceof SeoFieldValue) {
+                    $field = $entry->getFieldLayout()?->getFieldByHandle($seoHandle);
+                    if ($field instanceof SeoField) {
+                        $seoValue = $field->normalizeValue($seoValue, $entry);
+                    }
+                }
+
+                $entryEnabled = $seoValue instanceof SeoFieldValue && $seoValue->sitemapEnabled !== null
+                    ? (bool)$seoValue->sitemapEnabled
+                    : (bool)$typeRow['settings']['enabled'];
+                if (!$entryEnabled) {
+                    continue;
+                }
+
+                $entryUrl = $entry->getUrl();
+                if (!$entryUrl) {
+                    continue;
+                }
+
+                $urls[] = [
+                    'loc' => str_starts_with($entryUrl, 'http') ? $entryUrl : $baseUrl . '/' . ltrim($entryUrl, '/'),
+                    'lastmod' => $entry->dateUpdated?->format(DATE_ATOM),
+                ];
+            }
+        }
+
+        $xml = Craft::$app->getView()->renderTemplate('pragmatic-seo/sitemap_xml', [
+            'urls' => $urls,
+        ]);
+
+        $response = Craft::$app->getResponse();
+        $response->getHeaders()->set('Content-Type', 'application/xml; charset=UTF-8');
+        $response->format = Response::FORMAT_RAW;
+        $response->content = $xml;
+        return $response;
     }
 
     public function actionSaveContent(): Response
@@ -374,6 +507,113 @@ class DefaultController extends Controller
         }
 
         $db->createCommand()->dropTable(self::LEGACY_ASSET_META_TABLE)->execute();
+    }
+
+    private function ensureSitemapEntryTypeTable(): void
+    {
+        $db = Craft::$app->getDb();
+        if ($db->tableExists(self::SITEMAP_ENTRYTYPE_TABLE)) {
+            return;
+        }
+
+        $db->createCommand()->createTable(self::SITEMAP_ENTRYTYPE_TABLE, [
+            'entryTypeId' => 'integer NOT NULL PRIMARY KEY',
+            'enabled' => 'boolean NOT NULL DEFAULT true',
+            'includeImages' => 'boolean NOT NULL DEFAULT false',
+        ])->execute();
+
+        $db->createCommand()->addForeignKey(
+            null,
+            self::SITEMAP_ENTRYTYPE_TABLE,
+            ['entryTypeId'],
+            '{{%entrytypes}}',
+            ['id'],
+            'CASCADE',
+            'CASCADE'
+        )->execute();
+    }
+
+    private function saveEntryTypeSitemapSettings(int $entryTypeId, array $settings): void
+    {
+        if ($entryTypeId <= 0) {
+            return;
+        }
+
+        Craft::$app->getDb()->createCommand()->upsert(
+            self::SITEMAP_ENTRYTYPE_TABLE,
+            [
+                'entryTypeId' => $entryTypeId,
+                'enabled' => !empty($settings['enabled']) ? 1 : 0,
+                'includeImages' => !empty($settings['includeImages']) ? 1 : 0,
+            ],
+            [
+                'enabled' => !empty($settings['enabled']) ? 1 : 0,
+                'includeImages' => !empty($settings['includeImages']) ? 1 : 0,
+            ]
+        )->execute();
+    }
+
+    private function getSitemapEntryTypeRows(int $siteId): array
+    {
+        $this->ensureSitemapEntryTypeTable();
+
+        $savedSettings = (new Query())
+            ->select(['entryTypeId', 'enabled', 'includeImages'])
+            ->from(self::SITEMAP_ENTRYTYPE_TABLE)
+            ->indexBy('entryTypeId')
+            ->all();
+
+        $rows = [];
+        foreach (Craft::$app->entries->getAllEntryTypes() as $entryType) {
+            $seoFields = array_values(array_filter(
+                $entryType->getFieldLayout()?->getCustomFields() ?? [],
+                fn($field) => $field instanceof SeoField
+            ));
+            if (empty($seoFields)) {
+                continue;
+            }
+
+            $seoField = $seoFields[0];
+            $defaults = $savedSettings[$entryType->id] ?? null;
+            $settings = [
+                'enabled' => $defaults ? (bool)$defaults['enabled'] : true,
+                'includeImages' => $defaults ? (bool)$defaults['includeImages'] : false,
+            ];
+
+            $entries = Entry::find()
+                ->typeId($entryType->id)
+                ->siteId($siteId)
+                ->status(null)
+                ->limit(null)
+                ->all();
+
+            $entryRows = [];
+            foreach ($entries as $entry) {
+                $value = $entry->getFieldValue($seoField->handle);
+                if (!$value instanceof SeoFieldValue) {
+                    $value = $seoField->normalizeValue($value, $entry);
+                }
+                if (!$value instanceof SeoFieldValue) {
+                    $value = new SeoFieldValue();
+                }
+
+                $entryRows[] = [
+                    'entry' => $entry,
+                    'enabled' => $value->sitemapEnabled ?? $settings['enabled'],
+                    'includeImages' => $value->sitemapIncludeImages ?? $settings['includeImages'],
+                ];
+            }
+
+            $rows[] = [
+                'entryTypeId' => $entryType->id,
+                'entryTypeName' => $entryType->name,
+                'seoHandle' => $seoField->handle,
+                'settings' => $settings,
+                'entries' => $entryRows,
+            ];
+        }
+
+        return $rows;
     }
 
     private function parseUsedFilter(mixed $rawValue): bool
