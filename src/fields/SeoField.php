@@ -5,10 +5,10 @@ namespace pragmatic\seo\fields;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
-use craft\db\Schema;
 use craft\elements\Asset;
 use craft\helpers\Json;
 use GraphQL\Type\Definition\Type;
+use yii\db\Schema;
 
 class SeoField extends Field
 {
