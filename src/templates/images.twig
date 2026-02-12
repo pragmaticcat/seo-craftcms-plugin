@@ -6,13 +6,26 @@
 
 {% block content %}
   <form id="images-filter-form" method="get" action="{{ url('pragmatic-seo/images') }}" accept-charset="UTF-8" style="margin-bottom: 16px;">
-    {{ forms.lightswitchField({
-      id: 'used-only',
-      name: 'used',
-      on: usedOnly,
-      value: 1,
-      label: 'Mostrar solo imagenes usadas',
-    }) }}
+    <input type="hidden" name="page" value="1">
+    <div class="flex" style="gap: 12px; align-items: flex-end;">
+      {{ forms.lightswitchField({
+        id: 'used-only',
+        name: 'used',
+        on: usedOnly,
+        value: 1,
+        label: 'Mostrar solo imagenes usadas',
+      }) }}
+      <div>
+        <label for="perPage">Per page</label>
+        <div class="select">
+          <select id="perPage" name="perPage">
+            {% for option in [50, 100, 250] %}
+              <option value="{{ option }}" {{ option == perPage ? 'selected' : '' }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
   </form>
 
   {% if rows is empty %}
@@ -81,17 +94,41 @@
       <form id="{{ rowFormId }}" method="post" accept-charset="UTF-8">
         {{ csrfInput() }}
         {{ actionInput('pragmatic-seo/default/save-images') }}
-        {{ redirectInput(url('pragmatic-seo/images', usedOnly ? { used: 1 } : {})) }}
+        {{ redirectInput(url('pragmatic-seo/images', {
+          used: usedOnly ? 1 : 0,
+          perPage: perPage,
+          page: page
+        })) }}
       </form>
     {% endfor %}
+
+    <div class="flex justify-between align-center" style="margin-top: 16px;">
+      <div>{{ total }} total</div>
+      <div class="flex" style="gap: 8px; align-items: center;">
+        {% set prevPage = page > 1 ? page - 1 : 1 %}
+        {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+        <a class="btn {{ page == 1 ? 'disabled' : '' }}" href="{{ url('pragmatic-seo/images', { used: usedOnly ? 1 : 0, perPage: perPage, page: prevPage }) }}">Prev</a>
+        <div>Page {{ page }} / {{ totalPages }}</div>
+        <a class="btn {{ page == totalPages ? 'disabled' : '' }}" href="{{ url('pragmatic-seo/images', { used: usedOnly ? 1 : 0, perPage: perPage, page: nextPage }) }}">Next</a>
+      </div>
+    </div>
   {% endif %}
 {% endblock %}
 
 {% js %}
   const imagesFilterForm = document.getElementById('images-filter-form');
   const usedOnlySwitch = imagesFilterForm?.querySelector('input[type="checkbox"][name="used"]');
+  const perPageSelect = imagesFilterForm?.querySelector('select[name="perPage"]');
+  const pageInput = imagesFilterForm?.querySelector('input[name="page"]');
   if (imagesFilterForm && usedOnlySwitch) {
     usedOnlySwitch.addEventListener('change', () => {
+      if (pageInput) pageInput.value = '1';
+      imagesFilterForm.submit();
+    });
+  }
+  if (imagesFilterForm && perPageSelect) {
+    perPageSelect.addEventListener('change', () => {
+      if (pageInput) pageInput.value = '1';
       imagesFilterForm.submit();
     });
   }

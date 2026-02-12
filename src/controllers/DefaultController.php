@@ -34,18 +34,37 @@ class DefaultController extends Controller
     public function actionImages(): Response
     {
         $this->cleanupLegacyAssetMetaTable();
-        $usedOnly = Craft::$app->getRequest()->getQueryParam('used', '1') === '1';
+        $request = Craft::$app->getRequest();
+        $usedOnly = $request->getQueryParam('used', '1') === '1';
+        $page = max(1, (int)$request->getQueryParam('page', 1));
+        $allowedPerPage = [50, 100, 250];
+        $perPage = (int)$request->getQueryParam('perPage', 50);
+        if (!in_array($perPage, $allowedPerPage, true)) {
+            $perPage = 50;
+        }
 
-        $assets = Asset::find()
+        $assetQuery = Asset::find()
             ->kind('image')
             ->status(null)
-            ->siteId(Craft::$app->getSites()->getCurrentSite()->id)
-            ->limit(null)
+            ->siteId(Craft::$app->getSites()->getCurrentSite()->id);
+
+        if ($usedOnly) {
+            $usedIds = $this->getUsedAssetIds();
+            $assetQuery->id(!empty($usedIds) ? $usedIds : [0]);
+        }
+
+        $total = (int)(clone $assetQuery)->count();
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $assets = (clone $assetQuery)
+            ->offset($offset)
+            ->limit($perPage)
             ->all();
 
         $assetIds = array_map(fn(Asset $asset) => (int)$asset->id, $assets);
         $usedIds = $this->getUsedAssetIds($assetIds);
-
         $textColumns = $this->collectAssetTextColumns($assets);
 
         $rows = [];
@@ -74,6 +93,10 @@ class DefaultController extends Controller
             'rows' => $rows,
             'usedOnly' => $usedOnly,
             'textColumns' => $textColumns,
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'totalPages' => $totalPages,
         ]);
     }
 
@@ -156,18 +179,18 @@ class DefaultController extends Controller
         return $this->redirectToPostedUrl();
     }
 
-    private function getUsedAssetIds(array $assetIds): array
+    private function getUsedAssetIds(array $assetIds = []): array
     {
-        if (empty($assetIds)) {
-            return [];
-        }
-
-        return array_map('intval', (new Query())
+        $query = (new Query())
             ->select(['targetId'])
             ->distinct()
-            ->from('{{%relations}}')
-            ->where(['targetId' => $assetIds])
-            ->column());
+            ->from('{{%relations}}');
+
+        if (!empty($assetIds)) {
+            $query->where(['targetId' => $assetIds]);
+        }
+
+        return array_map('intval', $query->column());
     }
 
     private function collectAssetTextColumns(array $assets): array
