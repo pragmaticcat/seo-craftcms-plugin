@@ -14,15 +14,29 @@
       grid-template-columns: 1fr;
     }
   }
+
+  .seo-tabs-wrap .seo-tab-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .seo-tabs-wrap .seo-tab-btn {
+    cursor: pointer;
+  }
+
+  .seo-tabs-wrap .seo-tab-btn:not(.active) {
+    opacity: 0.75;
+  }
 {% endcss %}
 
 <div id="{{ seoFieldUid }}" class="seo-tabs-wrap">
-  <div class="tabs">
-    <a class="tab sel" href="#{{ seoFieldUid }}-general">General</a>
-    <a class="tab" href="#{{ seoFieldUid }}-options">Opciones</a>
+  <div class="seo-tab-buttons">
+    <button type="button" class="btn seo-tab-btn active" data-target="{{ seoFieldUid }}-general">General</button>
+    <button type="button" class="btn seo-tab-btn" data-target="{{ seoFieldUid }}-options">Opciones</button>
   </div>
 
-  <div id="{{ seoFieldUid }}-general">
+  <div id="{{ seoFieldUid }}-general" class="seo-tab-panel">
     <div class="seo-grid">
       {{ forms.textField({
         label: 'Titulo',
@@ -40,10 +54,12 @@
       {{ forms.elementSelectField({
         label: 'Imagen',
         id: field.handle ~ '-image',
-        name: field.handle ~ '[imageId]',
+        name: field.handle ~ '[imageId][]',
         elementType: 'craft\\\\elements\\\\Asset',
         elements: imageElement ? [imageElement] : [],
         limit: 1,
+        sources: '*',
+        criteria: { kind: 'image' },
       }) }}
 
       {{ forms.textareaField({
@@ -55,7 +71,7 @@
     </div>
   </div>
 
-  <div id="{{ seoFieldUid }}-options" class="hidden">
+  <div id="{{ seoFieldUid }}-options" class="seo-tab-panel" style="display: none;">
     <div class="seo-grid">
       {{ forms.lightswitchField({
         label: 'Sitemap: visible',
@@ -77,10 +93,21 @@
 {% js %}
   (function() {
     const container = document.getElementById('{{ seoFieldUid|e('js') }}');
-    if (!container || typeof Garnish === 'undefined' || typeof Garnish.Tabs !== 'function') {
+    if (!container) {
       return;
     }
 
-    new Garnish.Tabs(container.querySelectorAll('.tabs .tab'));
+    const buttons = container.querySelectorAll('.seo-tab-btn');
+    const panels = container.querySelectorAll('.seo-tab-panel');
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        buttons.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        panels.forEach((panel) => {
+          panel.style.display = panel.id === targetId ? '' : 'none';
+        });
+      });
+    });
   })();
 {% endjs %}

@@ -12,6 +12,7 @@ use yii\db\Schema;
 
 class SeoField extends Field
 {
+    public string $translationMethod = self::TRANSLATION_METHOD_SITE;
     public string $defaultTitle = '';
     public string $defaultDescription = '';
     public ?int $defaultImageId = null;
@@ -114,7 +115,11 @@ class SeoField extends Field
 
         $imageElement = null;
         if ($normalized->imageId) {
-            $imageElement = Asset::find()->id($normalized->imageId)->one();
+            $siteId = $element?->siteId ?? Craft::$app->getSites()->getCurrentSite()->id;
+            $imageElement = Craft::$app->getElements()->getElementById($normalized->imageId, Asset::class, $siteId);
+            if (!$imageElement) {
+                $imageElement = Asset::find()->id($normalized->imageId)->status(null)->one();
+            }
         }
 
         return Craft::$app->getView()->renderTemplate('pragmatic-seo/fields/seo_input', [
