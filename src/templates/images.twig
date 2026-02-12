@@ -72,6 +72,13 @@
               <td>
                 {% if value is same as(null) %}
                   <span class="light">-</span>
+                {% elseif column.handle == '__native_alt__' %}
+                  {{ forms.textarea({
+                    form: rowFormId,
+                    name: "assets[#{asset.id}][fields][#{column.handle}]",
+                    value: value,
+                    rows: 3,
+                  }) }}
                 {% else %}
                   {{ forms.text({
                     form: rowFormId,
@@ -118,15 +125,28 @@
 
 {% js %}
   const imagesFilterForm = document.getElementById('images-filter-form');
-  const usedOnlySwitch = imagesFilterForm?.querySelector('input[type="checkbox"][name="usedSwitch"]');
+  const usedOnlySwitch = imagesFilterForm?.querySelector('#used-only')
+    || imagesFilterForm?.querySelector('input[type="checkbox"][name="usedSwitch"]')
+    || imagesFilterForm?.querySelector('.lightswitch input[type="checkbox"]');
+  const usedOnlySwitchWrapper = imagesFilterForm?.querySelector('.lightswitch');
   const usedFilterValue = imagesFilterForm?.querySelector('#used-filter-value');
   const perPageSelect = imagesFilterForm?.querySelector('select[name="perPage"]');
   const pageInput = imagesFilterForm?.querySelector('input[name="page"]');
+  function submitWithSwitchValue() {
+    if (!imagesFilterForm || !usedOnlySwitch) return;
+    if (usedFilterValue) usedFilterValue.value = usedOnlySwitch.checked ? '1' : '0';
+    if (pageInput) pageInput.value = '1';
+    imagesFilterForm.submit();
+  }
+
   if (imagesFilterForm && usedOnlySwitch) {
-    usedOnlySwitch.addEventListener('change', () => {
-      if (usedFilterValue) usedFilterValue.value = usedOnlySwitch.checked ? '1' : '0';
-      if (pageInput) pageInput.value = '1';
-      imagesFilterForm.submit();
+    usedOnlySwitch.addEventListener('change', submitWithSwitchValue);
+    usedOnlySwitch.addEventListener('input', submitWithSwitchValue);
+  }
+  if (imagesFilterForm && usedOnlySwitchWrapper) {
+    usedOnlySwitchWrapper.addEventListener('click', () => {
+      // Craft toggles the underlying checkbox via JS; wait a tick before reading value.
+      setTimeout(submitWithSwitchValue, 0);
     });
   }
   if (imagesFilterForm && perPageSelect) {
