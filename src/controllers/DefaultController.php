@@ -810,13 +810,8 @@ class DefaultController extends Controller
             return false;
         }
 
-        if (isset($siteSetting->enabledByDefault)) {
-            return (bool)$siteSetting->enabledByDefault;
-        }
-        if (isset($siteSetting->enabled)) {
-            return (bool)$siteSetting->enabled;
-        }
-
+        // "Active for site" here means the section is assigned/configured for this site.
+        // Do not require enabledByDefault, as entries can still exist with manual enablement.
         return true;
     }
 
