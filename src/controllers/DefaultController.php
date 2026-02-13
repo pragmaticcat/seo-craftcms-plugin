@@ -807,7 +807,9 @@ class DefaultController extends Controller
         }
 
         if (!$siteSetting) {
-            return false;
+            // Craft can expose section site settings with different key structures depending on context.
+            // If we can't resolve the specific site setting reliably, avoid a false negative.
+            return true;
         }
 
         // "Active for site" here means the section is assigned/configured for this site.
