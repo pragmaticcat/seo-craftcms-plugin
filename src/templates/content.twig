@@ -215,6 +215,18 @@
             .then(function(html) {
               const doc = new DOMParser().parseFromString(html, 'text/html');
               const nextResults = doc.getElementById('content-results');
+              const nextSectionSelect = doc.getElementById('section');
+              const selectedSection = sectionSelect ? sectionSelect.value : '';
+
+              if (sectionSelect && nextSectionSelect) {
+                sectionSelect.innerHTML = nextSectionSelect.innerHTML;
+                if (selectedSection && sectionSelect.querySelector('option[value="' + CSS.escape(selectedSection) + '"]')) {
+                  sectionSelect.value = selectedSection;
+                } else {
+                  sectionSelect.value = '';
+                }
+              }
+
               if (!nextResults) return;
               resultsContainer.innerHTML = nextResults.innerHTML;
               if (window.Craft && typeof Craft.initUiElements === 'function') {
