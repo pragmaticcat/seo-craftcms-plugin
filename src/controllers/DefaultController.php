@@ -298,9 +298,11 @@ class DefaultController extends Controller
         $this->ensureSitemapEntryTypeTable();
         $siteId = Craft::$app->getSites()->getCurrentSite()->id;
         $entryTypeRows = $this->getSitemapEntryTypeRows($siteId);
+        $splitRows = $this->splitSitemapRowsByPageGroup($entryTypeRows);
 
         return $this->renderTemplate('pragmatic-seo/sitemap', [
-            'entryTypeRows' => $entryTypeRows,
+            'entryTypeRows' => $splitRows['regular'],
+            'pageEntryTypeRows' => $splitRows['page'],
         ]);
     }
 
@@ -724,10 +726,18 @@ class DefaultController extends Controller
                     'includeImages' => $value->sitemapIncludeImages ?? $settings['includeImages'],
                 ];
             }
+            if (empty($entryRows)) {
+                // Show only entry types that actually have entries in the active site.
+                continue;
+            }
+
+            $section = $entryType->sectionId ? Craft::$app->entries->getSectionById((int)$entryType->sectionId) : null;
 
             $rows[] = [
                 'entryTypeId' => $entryType->id,
                 'entryTypeName' => $entryType->name,
+                'sectionName' => $section?->name,
+                'sectionType' => (string)($section?->type ?? ''),
                 'seoHandle' => $seoField->handle,
                 'settings' => $settings,
                 'entries' => $entryRows,
@@ -735,6 +745,39 @@ class DefaultController extends Controller
         }
 
         return $rows;
+    }
+
+    private function splitSitemapRowsByPageGroup(array $rows): array
+    {
+        $regular = [];
+        $page = [];
+
+        foreach ($rows as $row) {
+            if ($this->isPageSitemapRow($row)) {
+                $page[] = $row;
+            } else {
+                $regular[] = $row;
+            }
+        }
+
+        return [
+            'regular' => $regular,
+            'page' => $page,
+        ];
+    }
+
+    private function isPageSitemapRow(array $row): bool
+    {
+        $entryTypeName = strtolower(trim((string)($row['entryTypeName'] ?? '')));
+        $sectionName = strtolower(trim((string)($row['sectionName'] ?? '')));
+        $sectionType = strtolower(trim((string)($row['sectionType'] ?? '')));
+
+        if ($entryTypeName === 'page' || $sectionName === 'page') {
+            return true;
+        }
+
+        // Craft "Single" sections usually represent page-like content.
+        return $sectionType === 'single';
     }
 
     private function parseUsedFilter(mixed $rawValue): bool

@@ -10,12 +10,13 @@
 ] %}
 
 {% block content %}
+  {% set hasRows = (entryTypeRows is not empty) or (pageEntryTypeRows is not empty) %}
   <form method="post" accept-charset="UTF-8">
     {{ csrfInput() }}
     {{ actionInput('pragmatic-seo/default/save-sitemap') }}
     {{ redirectInput('pragmatic-seo/sitemap') }}
 
-    {% if entryTypeRows is empty %}
+    {% if not hasRows %}
       <p>{{ 'No entry types with an SEO field in their layout.'|t('pragmatic-seo') }}</p>
     {% else %}
       <table class="data fullwidth">
@@ -27,12 +28,94 @@
           </tr>
         </thead>
         <tbody>
+          {% if pageEntryTypeRows is not empty %}
+            <tr>
+              <td>
+                <details>
+                  <summary><strong>Page</strong> <span class="light">({{ pageEntryTypeRows|length }} entry types)</span></summary>
+                  <div style="margin-top: 8px; display: grid; gap: 12px;">
+                    {% for row in pageEntryTypeRows %}
+                      <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px;">
+                        <div class="flex" style="justify-content: space-between; align-items: center; gap: 12px;">
+                          <div>
+                            <strong>{{ row.sectionName ?: row.entryTypeName }}</strong>
+                            <span class="light">({{ row.entryTypeName }} · {{ row.seoHandle }})</span>
+                          </div>
+                          <div class="flex" style="gap: 12px; align-items: center;">
+                            <label style="display:flex; align-items:center; gap:6px;">
+                              <span>{{ 'Visible in sitemap'|t('pragmatic-seo') }}</span>
+                              <input type="hidden" name="entryTypes[{{ row.entryTypeId }}][enabled]" value="0">
+                              {{ forms.lightswitch({
+                                name: "entryTypes[#{row.entryTypeId}][enabled]",
+                                on: row.settings.enabled,
+                                value: 1,
+                              }) }}
+                            </label>
+                            <label style="display:flex; align-items:center; gap:6px;">
+                              <span>{{ 'Include images'|t('pragmatic-seo') }}</span>
+                              <input type="hidden" name="entryTypes[{{ row.entryTypeId }}][includeImages]" value="0">
+                              {{ forms.lightswitch({
+                                name: "entryTypes[#{row.entryTypeId}][includeImages]",
+                                on: row.settings.includeImages,
+                                value: 1,
+                              }) }}
+                            </label>
+                          </div>
+                        </div>
+                        <div style="margin-top: 8px;">
+                          <table class="data fullwidth">
+                            <thead>
+                              <tr>
+                                <th>{{ 'Entry'|t('pragmatic-seo') }}</th>
+                                <th>{{ 'Visible in sitemap'|t('pragmatic-seo') }}</th>
+                                <th>{{ 'Include images'|t('pragmatic-seo') }}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for entryRow in row.entries %}
+                                {% set entry = entryRow.entry %}
+                                <tr>
+                                  <td>
+                                    <a href="#" class="js-entry-slideout" data-entry-id="{{ entry.id }}">{{ entry.title|default('Entry #' ~ entry.id) }}</a>
+                                  </td>
+                                  <td>
+                                    <input type="hidden" name="entries[{{ entry.id }}][enabled]" value="0">
+                                    {{ forms.lightswitch({
+                                      name: "entries[#{entry.id}][enabled]",
+                                      on: entryRow.enabled,
+                                      value: 1,
+                                    }) }}
+                                  </td>
+                                  <td>
+                                    <input type="hidden" name="entries[{{ entry.id }}][includeImages]" value="0">
+                                    {{ forms.lightswitch({
+                                      name: "entries[#{entry.id}][includeImages]",
+                                      on: entryRow.includeImages,
+                                      value: 1,
+                                    }) }}
+                                    <input type="hidden" name="entries[{{ entry.id }}][seoHandle]" value="{{ row.seoHandle }}">
+                                  </td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </details>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          {% endif %}
+
           {% for row in entryTypeRows %}
             {% set rowId = 'entry-type-' ~ row.entryTypeId %}
             <tr>
               <td>
                 <details>
-                  <summary><strong>{{ row.entryTypeName }}</strong> <span class="light">({{ row.seoHandle }})</span></summary>
+                  <summary><strong>{{ row.sectionName ?: row.entryTypeName }}</strong> <span class="light">({{ row.entryTypeName }} · {{ row.seoHandle }})</span></summary>
                   <div style="margin-top: 8px;">
                     <table class="data fullwidth">
                       <thead>
