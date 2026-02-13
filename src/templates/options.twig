@@ -52,23 +52,10 @@
     }
   {% endcss %}
 
-  <form method="get" id="options-filter" style="margin-bottom: 14px;">
-    <div style="max-width: 340px;">
-      <label for="site">{{ 'Language'|t('pragmatic-seo') }}</label>
-      <div class="select">
-        <select id="site" name="site">
-          {% for site in sites %}
-            <option value="{{ site.id }}" {{ site.id == selectedSiteId ? 'selected' : '' }}>{{ site.name }} ({{ site.language }})</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-  </form>
-
   <form method="post" accept-charset="UTF-8">
     {{ csrfInput() }}
     {{ actionInput('pragmatic-seo/default/save-options') }}
-    {{ redirectInput('pragmatic-seo/options', { site: selectedSiteId }) }}
+    {{ redirectInput('pragmatic-seo/options', { site: selectedSite.handle }) }}
     <input type="hidden" name="site" value="{{ selectedSiteId }}">
 
     <div class="seo-options-grid">
@@ -230,14 +217,4 @@
     <button type="submit" class="btn submit">{{ 'Save'|t('pragmatic-seo') }}</button>
   </form>
 
-  {% js %}
-    (function() {
-      const form = document.getElementById('options-filter');
-      const site = document.getElementById('site');
-      if (!form || !site) return;
-      site.addEventListener('change', function() {
-        form.submit();
-      });
-    })();
-  {% endjs %}
 {% endblock %}

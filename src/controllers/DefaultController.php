@@ -8,6 +8,7 @@ use craft\db\Query;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\fields\PlainText;
+use craft\helpers\Cp;
 use craft\web\Controller;
 use pragmatic\seo\PragmaticSeo;
 use pragmatic\seo\fields\SeoField;
@@ -33,18 +34,15 @@ class DefaultController extends Controller
 
     public function actionOptions(): Response
     {
-        $request = Craft::$app->getRequest();
         $sites = Craft::$app->getSites()->getAllSites();
-        $requestedSiteId = (int)$request->getQueryParam('site', 0);
-        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
-        $selectedSiteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
-            ? $requestedSiteId
-            : (int)Craft::$app->getSites()->getCurrentSite()->id;
+        $selectedSite = Cp::requestedSite() ?? Craft::$app->getSites()->getPrimarySite();
+        $selectedSiteId = (int)$selectedSite->id;
 
         $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
 
         return $this->renderTemplate('pragmatic-seo/options', [
             'sites' => $sites,
+            'selectedSite' => $selectedSite,
             'selectedSiteId' => $selectedSiteId,
             'settings' => $settings,
         ]);
@@ -52,19 +50,16 @@ class DefaultController extends Controller
 
     public function actionAudit(): Response
     {
-        $request = Craft::$app->getRequest();
         $sites = Craft::$app->getSites()->getAllSites();
-        $requestedSiteId = (int)$request->getQueryParam('site', 0);
-        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
-        $selectedSiteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
-            ? $requestedSiteId
-            : (int)Craft::$app->getSites()->getCurrentSite()->id;
+        $selectedSite = Cp::requestedSite() ?? Craft::$app->getSites()->getPrimarySite();
+        $selectedSiteId = (int)$selectedSite->id;
 
         $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
         $audit = $this->buildTechnicalAudit($selectedSiteId, $settings);
 
         return $this->renderTemplate('pragmatic-seo/audit', [
             'sites' => $sites,
+            'selectedSite' => $selectedSite,
             'selectedSiteId' => $selectedSiteId,
             'audit' => $audit,
         ]);
@@ -164,7 +159,6 @@ class DefaultController extends Controller
         $request = Craft::$app->getRequest();
         $search = (string)$request->getParam('q', '');
         $sectionId = (int)$request->getParam('section', 0);
-        $requestedSiteId = (int)$request->getParam('site', 0);
         $page = max(1, (int)$request->getParam('page', 1));
         $perPage = (int)$request->getParam('perPage', 50);
         if (!in_array($perPage, [50, 100, 250], true)) {
@@ -173,10 +167,8 @@ class DefaultController extends Controller
 
         $sitesService = Craft::$app->getSites();
         $sites = $sitesService->getAllSites();
-        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
-        $siteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
-            ? $requestedSiteId
-            : (int)$sitesService->getCurrentSite()->id;
+        $selectedSite = Cp::requestedSite() ?? $sitesService->getPrimarySite();
+        $siteId = (int)$selectedSite->id;
         $sectionsById = [];
         $availableSectionIds = [];
         $sectionEntries = Entry::find()
@@ -279,6 +271,7 @@ class DefaultController extends Controller
             'sections' => $sections,
             'sectionId' => $sectionId,
             'sites' => $sites,
+            'selectedSite' => $selectedSite,
             'selectedSiteId' => $siteId,
             'imageElementsById' => $imageElementsById,
             'search' => $search,

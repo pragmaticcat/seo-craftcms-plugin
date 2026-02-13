@@ -4,12 +4,37 @@
 {% set selectedSubnavItem = 'seo' %}
 {% set selectedTab = craft.app.request.getSegment(2) ?? 'content' %}
 
+{# Site persistence: carry the site handle across tabs #}
+{% set _requestedSiteHandle = craft.app.request.getQueryParam('site') %}
+{% set _siteParam = _requestedSiteHandle ? { site: _requestedSiteHandle } : {} %}
+
 {% set tabs = {
-  'content': { label: 'Content'|t('pragmatic-seo'), url: url('pragmatic-seo/content') },
-  'images': { label: 'Images'|t('pragmatic-seo'), url: url('pragmatic-seo/images') },
-  'sitemap': { label: 'Sitemap'|t('pragmatic-seo'), url: url('pragmatic-seo/sitemap') },
-  'audit': { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit') },
-  'options': { label: 'Options'|t('pragmatic-seo'), url: url('pragmatic-seo/options') }
+  'content': { label: 'Content'|t('pragmatic-seo'), url: url('pragmatic-seo/content', _siteParam) },
+  'images': { label: 'Images'|t('pragmatic-seo'), url: url('pragmatic-seo/images', _siteParam) },
+  'sitemap': { label: 'Sitemap'|t('pragmatic-seo'), url: url('pragmatic-seo/sitemap', _siteParam) },
+  'audit': { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit', _siteParam) },
+  'options': { label: 'Options'|t('pragmatic-seo'), url: url('pragmatic-seo/options', _siteParam) }
 } %}
+
+{# Site crumb — identical pattern to _layouts/elementindex.twig #}
+{% set _allEditableSites = craft.app.sites.getEditableSites() %}
+{% if _allEditableSites|length > 1 %}
+  {% set _selectedSite = selectedSite
+    ?? (_requestedSiteHandle ? craft.app.sites.getSiteByHandle(_requestedSiteHandle) : null)
+    ?? craft.app.sites.getPrimarySite() %}
+  {% set _siteMenuItems = siteMenuItems(_allEditableSites, _selectedSite) %}
+  {% if _siteMenuItems|length %}
+    {% set crumbs = (crumbs ?? [])|unshift({
+      id: 'site-crumb',
+      icon: 'world',
+      iconAltText: 'Site'|t('app'),
+      label: _selectedSite.name|t('site'),
+      menu: {
+        items: _siteMenuItems,
+        label: 'Select site'|t('app')
+      }
+    }) %}
+  {% endif %}
+{% endif %}
 
 {% block content %}{% endblock %}

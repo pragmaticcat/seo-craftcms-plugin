@@ -51,19 +51,6 @@
     }
   {% endcss %}
 
-  <form method="get" id="audit-filter" style="margin-bottom: 14px;">
-    <div style="max-width: 340px;">
-      <label for="site">{{ 'Language'|t('pragmatic-seo') }}</label>
-      <div class="select">
-        <select id="site" name="site">
-          {% for site in sites %}
-            <option value="{{ site.id }}" {{ site.id == selectedSiteId ? 'selected' : '' }}>{{ site.name }} ({{ site.language }})</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-  </form>
-
   <h2 style="margin-bottom: 4px;">Informe técnico SEO</h2>
   <p class="light" style="margin-top: 0;">Comprobaciones automáticas para mejorar cobertura e interpretación en Search Console.</p>
 
@@ -136,14 +123,6 @@
 
   {% js %}
     (function() {
-      const form = document.getElementById('audit-filter');
-      const site = document.getElementById('site');
-      if (form && site) {
-        site.addEventListener('change', function() {
-          form.submit();
-        });
-      }
-
       document.querySelectorAll('.js-entry-slideout').forEach(function(link) {
         link.addEventListener('click', function(event) {
           event.preventDefault();
