@@ -55,84 +55,86 @@
     </form>
   </div>
 
-  <form method="post" accept-charset="UTF-8">
-    {{ csrfInput() }}
-    {{ actionInput('pragmatic-seo/default/save-content') }}
-    <input type="hidden" name="site" value="{{ selectedSiteId }}">
-    {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId, site: selectedSiteId }) }}
+  <div id="content-results">
+    <form method="post" accept-charset="UTF-8">
+      {{ csrfInput() }}
+      {{ actionInput('pragmatic-seo/default/save-content') }}
+      <input type="hidden" name="site" value="{{ selectedSiteId }}">
+      {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId, site: selectedSiteId }) }}
 
-    <table class="data fullwidth" style="margin-top: 16px;">
-      <thead>
-        <tr>
-          <th>{{ 'Entry'|t('pragmatic-seo') }}</th>
-          <th>{{ 'Title'|t('pragmatic-seo') }}</th>
-          <th>{{ 'Description'|t('pragmatic-seo') }}</th>
-          <th>{{ 'Image'|t('pragmatic-seo') }}</th>
-          <th>{{ 'Image description'|t('pragmatic-seo') }}</th>
-          <th>{{ 'Action'|t('pragmatic-seo') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          {% set rowIndex = loop.index0 %}
-          {% set entryId = row.entry.id %}
-          {% set prevEntryId = loop.first ? null : rows[loop.index0 - 1].entry.id %}
-          {% set isFirstOfGroup = entryId != prevEntryId %}
-          <tr{{ isFirstOfGroup and not loop.first ? ' class="entry-group-border"' : '' }} data-entry-id="{{ entryId }}">
-            {% if isFirstOfGroup %}
-              <td rowspan="{{ entryRowCounts[entryId] }}" style="vertical-align: top;">
-                <a href="#" class="js-entry-slideout" data-entry-id="{{ entryId }}" data-site-id="{{ row.entry.siteId }}">{{ row.entry.title|default('Entry #' ~ entryId) }}</a>
-                <div class="light">{{ row.entry.section.name ?? row.entry.type.name ?? 'No section or type' }}</div>
-              </td>
-            {% endif %}
-            <td>
-              <input type="hidden" name="entries[{{ rowIndex }}][entryId]" value="{{ entryId }}">
-              <input type="hidden" name="entries[{{ rowIndex }}][fieldHandle]" value="{{ row.fieldHandle }}">
-              <input class="text fullwidth" name="entries[{{ rowIndex }}][values][title]" value="{{ row.value.title ?? '' }}">
-            </td>
-            <td>
-              <textarea class="text fullwidth" name="entries[{{ rowIndex }}][values][description]" rows="2">{{ row.value.description ?? '' }}</textarea>
-            </td>
-            <td>
-              {% set imageElement = row.value.imageId ? (imageElementsById[row.value.imageId] ?? null) : null %}
-              {{ forms.elementSelect({
-                id: 'entry-seo-image-' ~ rowIndex,
-                name: "entries[#{rowIndex}][values][imageId]",
-                elementType: 'craft\\\\elements\\\\Asset',
-                elements: imageElement ? [imageElement] : [],
-                limit: 1,
-                criteria: { kind: 'image' },
-                sources: '*',
-              }) }}
-            </td>
-            <td>
-              <textarea class="text fullwidth" name="entries[{{ rowIndex }}][values][imageDescription]" rows="2">{{ row.value.imageDescription ?? '' }}</textarea>
-            </td>
-            <td style="white-space: nowrap;">
-              <button class="btn submit" type="submit" name="saveRow" value="{{ rowIndex }}">{{ 'Save row'|t('pragmatic-seo') }}</button>
-            </td>
+      <table class="data fullwidth" style="margin-top: 16px;">
+        <thead>
+          <tr>
+            <th>{{ 'Entry'|t('pragmatic-seo') }}</th>
+            <th>{{ 'Title'|t('pragmatic-seo') }}</th>
+            <th>{{ 'Description'|t('pragmatic-seo') }}</th>
+            <th>{{ 'Image'|t('pragmatic-seo') }}</th>
+            <th>{{ 'Image description'|t('pragmatic-seo') }}</th>
+            <th>{{ 'Action'|t('pragmatic-seo') }}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </form>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set rowIndex = loop.index0 %}
+            {% set entryId = row.entry.id %}
+            {% set prevEntryId = loop.first ? null : rows[loop.index0 - 1].entry.id %}
+            {% set isFirstOfGroup = entryId != prevEntryId %}
+            <tr{{ isFirstOfGroup and not loop.first ? ' class="entry-group-border"' : '' }} data-entry-id="{{ entryId }}">
+              {% if isFirstOfGroup %}
+                <td rowspan="{{ entryRowCounts[entryId] }}" style="vertical-align: top;">
+                  <a href="#" class="js-entry-slideout" data-entry-id="{{ entryId }}" data-site-id="{{ row.entry.siteId }}">{{ row.entry.title|default('Entry #' ~ entryId) }}</a>
+                  <div class="light">{{ row.entry.section.name ?? row.entry.type.name ?? 'No section or type' }}</div>
+                </td>
+              {% endif %}
+              <td>
+                <input type="hidden" name="entries[{{ rowIndex }}][entryId]" value="{{ entryId }}">
+                <input type="hidden" name="entries[{{ rowIndex }}][fieldHandle]" value="{{ row.fieldHandle }}">
+                <input class="text fullwidth" name="entries[{{ rowIndex }}][values][title]" value="{{ row.value.title ?? '' }}">
+              </td>
+              <td>
+                <textarea class="text fullwidth" name="entries[{{ rowIndex }}][values][description]" rows="2">{{ row.value.description ?? '' }}</textarea>
+              </td>
+              <td>
+                {% set imageElement = row.value.imageId ? (imageElementsById[row.value.imageId] ?? null) : null %}
+                {{ forms.elementSelect({
+                  id: 'entry-seo-image-' ~ rowIndex,
+                  name: "entries[#{rowIndex}][values][imageId]",
+                  elementType: 'craft\\\\elements\\\\Asset',
+                  elements: imageElement ? [imageElement] : [],
+                  limit: 1,
+                  criteria: { kind: 'image' },
+                  sources: '*',
+                }) }}
+              </td>
+              <td>
+                <textarea class="text fullwidth" name="entries[{{ rowIndex }}][values][imageDescription]" rows="2">{{ row.value.imageDescription ?? '' }}</textarea>
+              </td>
+              <td style="white-space: nowrap;">
+                <button class="btn submit" type="submit" name="saveRow" value="{{ rowIndex }}">{{ 'Save row'|t('pragmatic-seo') }}</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </form>
 
-  <div class="flex justify-between align-center" style="margin-top: 16px;">
-    <div>{{ total }} {{ 'total'|t('pragmatic-seo') }}</div>
-    <div class="flex" style="gap: 8px; align-items: center;">
-      {% set prevPage = page > 1 ? page - 1 : 1 %}
-      {% set nextPage = page < totalPages ? page + 1 : totalPages %}
-      {% if page == 1 %}
-        <span class="btn disabled">{{ 'Prev'|t('pragmatic-seo') }}</span>
-      {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Prev'|t('pragmatic-seo') }}</a>
-      {% endif %}
-      <div>{{ 'Page'|t('pragmatic-seo') }} {{ page }} / {{ totalPages }}</div>
-      {% if page == totalPages %}
-        <span class="btn disabled">{{ 'Next'|t('pragmatic-seo') }}</span>
-      {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Next'|t('pragmatic-seo') }}</a>
-      {% endif %}
+    <div class="flex justify-between align-center" style="margin-top: 16px;">
+      <div>{{ total }} {{ 'total'|t('pragmatic-seo') }}</div>
+      <div class="flex" style="gap: 8px; align-items: center;">
+        {% set prevPage = page > 1 ? page - 1 : 1 %}
+        {% set nextPage = page < totalPages ? page + 1 : totalPages %}
+        {% if page == 1 %}
+          <span class="btn disabled">{{ 'Prev'|t('pragmatic-seo') }}</span>
+        {% else %}
+          <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Prev'|t('pragmatic-seo') }}</a>
+        {% endif %}
+        <div>{{ 'Page'|t('pragmatic-seo') }} {{ page }} / {{ totalPages }}</div>
+        {% if page == totalPages %}
+          <span class="btn disabled">{{ 'Next'|t('pragmatic-seo') }}</span>
+        {% else %}
+          <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Next'|t('pragmatic-seo') }}</a>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -143,40 +145,115 @@
       const sectionSelect = document.getElementById('section');
       const siteSelect = document.getElementById('site');
       const perPageSelect = document.getElementById('perPage');
+      const resultsContainer = document.getElementById('content-results');
 
       if (filterForm) {
         const pageInput = filterForm.querySelector('input[name="page"]');
+        let searchTimer = null;
+        let pendingRequest = null;
+
+        function bindEntrySlideouts(root) {
+          (root || document).querySelectorAll('.js-entry-slideout').forEach(function(link) {
+            link.addEventListener('click', function(ev) {
+              ev.preventDefault();
+              const entryId = parseInt(link.getAttribute('data-entry-id'), 10);
+              const siteId = parseInt(link.getAttribute('data-site-id'), 10);
+              if (!entryId || !window.Craft) return;
+              Craft.createElementEditor('craft\\elements\\Entry', {
+                elementId: entryId,
+                siteId: siteId || undefined,
+                slideout: true
+              });
+            });
+          });
+        }
+
+        function targetPathname() {
+          return new URL(filterForm.getAttribute('action') || window.location.pathname, window.location.origin).pathname;
+        }
+
+        function buildUrlFromForm() {
+          const query = new URLSearchParams(new FormData(filterForm)).toString();
+          const targetUrl = filterForm.getAttribute('action') || window.location.pathname;
+          return query ? (targetUrl + '?' + query) : targetUrl;
+        }
+
+        function syncFormFromUrl(fullUrl) {
+          const url = new URL(fullUrl, window.location.origin);
+          const params = url.searchParams;
+          if (searchInput) searchInput.value = params.get('q') || '';
+          if (sectionSelect) sectionSelect.value = params.get('section') || '';
+          if (siteSelect) siteSelect.value = params.get('site') || (siteSelect.value || '');
+          if (perPageSelect) perPageSelect.value = params.get('perPage') || (perPageSelect.value || '50');
+          if (pageInput) pageInput.value = params.get('page') || '1';
+        }
+
+        function submitViaAjax(fullUrl) {
+          if (!resultsContainer) {
+            filterForm.submit();
+            return;
+          }
+
+          const urlToLoad = fullUrl || buildUrlFromForm();
+          window.history.replaceState({}, '', urlToLoad);
+          syncFormFromUrl(urlToLoad);
+
+          if (pendingRequest && typeof pendingRequest.abort === 'function') {
+            pendingRequest.abort();
+          }
+          pendingRequest = new AbortController();
+
+          fetch(urlToLoad, {
+            method: 'GET',
+            credentials: 'same-origin',
+            signal: pendingRequest.signal,
+          })
+            .then(function(response) {
+              if (!response.ok) throw new Error('Failed to load filtered content.');
+              return response.text();
+            })
+            .then(function(html) {
+              const doc = new DOMParser().parseFromString(html, 'text/html');
+              const nextResults = doc.getElementById('content-results');
+              if (!nextResults) return;
+              resultsContainer.innerHTML = nextResults.innerHTML;
+              if (window.Craft && typeof Craft.initUiElements === 'function') {
+                Craft.initUiElements(resultsContainer);
+              }
+              bindEntrySlideouts(resultsContainer);
+            })
+            .catch(function(error) {
+              if (error && error.name === 'AbortError') return;
+              filterForm.submit();
+            });
+        }
+
         function resetPageAndSubmit() {
           if (pageInput) pageInput.value = '1';
-          filterForm.submit();
+          submitViaAjax();
         }
 
         if (searchInput) {
-          searchInput.addEventListener('keydown', function(event) {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            resetPageAndSubmit();
+          searchInput.addEventListener('input', function() {
+            if (searchTimer) clearTimeout(searchTimer);
+            searchTimer = setTimeout(resetPageAndSubmit, 300);
           });
-          searchInput.addEventListener('change', resetPageAndSubmit);
         }
         [sectionSelect, siteSelect, perPageSelect].forEach(function(el) {
           if (el) el.addEventListener('change', resetPageAndSubmit);
         });
-      }
+        resultsContainer?.addEventListener('click', function(event) {
+          const link = event.target.closest('a[href]');
+          if (!link || link.classList.contains('js-entry-slideout')) return;
 
-      document.querySelectorAll('.js-entry-slideout').forEach(function(link) {
-        link.addEventListener('click', function(ev) {
-          ev.preventDefault();
-          const entryId = parseInt(link.getAttribute('data-entry-id'), 10);
-          const siteId = parseInt(link.getAttribute('data-site-id'), 10);
-          if (!entryId || !window.Craft) return;
-          Craft.createElementEditor('craft\\elements\\Entry', {
-            elementId: entryId,
-            siteId: siteId || undefined,
-            slideout: true
-          });
+          const nextUrl = new URL(link.getAttribute('href'), window.location.origin);
+          if (nextUrl.pathname !== targetPathname()) return;
+
+          event.preventDefault();
+          submitViaAjax(nextUrl.toString());
         });
-      });
+        bindEntrySlideouts(document);
+      }
     })();
   {% endjs %}
 {% endblock %}

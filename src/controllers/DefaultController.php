@@ -131,9 +131,6 @@ class DefaultController extends Controller
         $sectionEntries = Entry::find()
             ->siteId($siteId)
             ->status(null);
-        if ($search !== '') {
-            $sectionEntries->search($search);
-        }
         foreach ($sectionEntries->all() as $entry) {
             if (!$this->entryHasSeoField($entry)) {
                 continue;
