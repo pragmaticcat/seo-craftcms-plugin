@@ -8,6 +8,12 @@
   { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit') },
 ] %}
 
+{% block actionButton %}
+  <button id="run-audit-btn" class="btn danger" type="button">
+    {{ 'Run audit'|t('pragmatic-seo') }}
+  </button>
+{% endblock %}
+
 {% block sidebar %}
   <nav aria-label="{{ 'Sections'|t('pragmatic-seo') }}">
     <ul class="nav">
@@ -28,22 +34,35 @@
       {% endif %}
     </ul>
   </nav>
+  <div id="audit-status-filter" style="display:none;">
+    <ul class="nav" style="margin-top: 16px;">
+      <li class="heading"><span>{{ 'Status'|t('pragmatic-seo') }}</span></li>
+      <li class="sel" data-filter="all">
+        <a href="#" class="js-status-filter" data-filter="all">
+          {{ 'All'|t('pragmatic-seo') }} <span id="count-all" class="light"></span>
+        </a>
+      </li>
+      <li data-filter="error">
+        <a href="#" class="js-status-filter" data-filter="error">
+          {{ 'Errors'|t('pragmatic-seo') }} <span id="count-error" class="light"></span>
+        </a>
+      </li>
+      <li data-filter="warn">
+        <a href="#" class="js-status-filter" data-filter="warn">
+          {{ 'Warnings'|t('pragmatic-seo') }} <span id="count-warn" class="light"></span>
+        </a>
+      </li>
+      <li data-filter="ok">
+        <a href="#" class="js-status-filter" data-filter="ok">
+          OK <span id="count-ok" class="light"></span>
+        </a>
+      </li>
+    </ul>
+  </div>
 {% endblock %}
 
 {% block content %}
   {% css %}
-    .seo-audit-summary {
-      display: flex;
-      gap: 10px;
-      margin: 8px 0 14px;
-    }
-    .seo-audit-chip {
-      background: #f3f4f6;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
-      color: #374151;
-    }
     .seo-status {
       display: inline-block;
       border-radius: 999px;
@@ -71,88 +90,204 @@
       background: #fef2f2;
       color: #b91c1c;
     }
+    #audit-empty {
+      padding: 24px 0;
+      color: #6b7280;
+    }
+    #audit-progress {
+      display: none;
+      padding: 24px 0;
+      color: #6b7280;
+    }
   {% endcss %}
 
-  <h2 style="margin-bottom: 4px;">Informe técnico SEO</h2>
-  <p class="light" style="margin-top: 0;">Comprobaciones automáticas para mejorar cobertura e interpretación en Search Console.</p>
+  <div id="audit-empty">
+    <p>{{ 'Click "Run audit" to analyse entries in this section.'|t('pragmatic-seo') }}</p>
+  </div>
 
-  {% set checkTooltips = {
-    title: 'Falta título final. Define un título SEO o asegúrate de que la entry tenga título.',
-    description: 'Falta descripción SEO. Añádela para mejorar snippets en resultados.',
-    canonical: 'No se ha podido resolver URL canónica para esta entry.',
-    image: 'No hay imagen SEO. Se recomienda para mejorar compartición social.',
-    robots: 'Revisa la directiva robots para esta página.',
-    jsonLd: 'JSON-LD desactivado en opciones para este idioma/sitio.',
-    hreflang: 'No se han detectado suficientes variantes localizadas para emitir hreflang.',
-  } %}
+  <div id="audit-progress">
+    <p>{{ 'Running audit…'|t('pragmatic-seo') }}</p>
+  </div>
 
-  {% if audit.truncated %}
-    <p class="light">Se han auditado {{ audit.scannedEntries }} entradas de {{ audit.totalEntries }} para mantener rendimiento.</p>
-  {% endif %}
-
-  {% if audit.rows is empty %}
-    <p>No hay entradas con campo SEO para auditar.</p>
-  {% else %}
+  <div id="audit-results" style="display:none;">
+    <p id="audit-truncated-notice" class="light" style="display:none;margin-bottom:8px;"></p>
     <table id="audit-table" class="data fullwidth">
       <thead>
         <tr>
-          <th>Entry</th>
-          <th>Estado</th>
-          <th>Checks</th>
+          <th>{{ 'Entry'|t('pragmatic-seo') }}</th>
+          <th>{{ 'Status'|t('pragmatic-seo') }}</th>
+          <th>{{ 'Checks'|t('pragmatic-seo') }}</th>
         </tr>
       </thead>
-      <tbody>
-        {% for row in audit.rows %}
-          <tr data-status="{{ row.status }}">
-            <td>
-              <a href="#" class="js-entry-slideout" data-entry-id="{{ row.entryId }}" data-site-id="{{ row.entrySiteId }}">{{ row.entryTitle }}</a>
-              <div class="light"><code>ID {{ row.entryId }}</code></div>
-            </td>
-            <td>
-              {% set statusTitle = row.status == 'warn'
-                ? 'Hay avisos SEO recomendados para mejorar visibilidad.'
-                : (row.status == 'error'
-                  ? 'Hay errores SEO importantes que conviene corregir cuanto antes.'
-                  : '') %}
-              <span class="seo-status seo-status-{{ row.status }}" {{ statusTitle ? 'title="' ~ statusTitle|e ~ '"' : '' }}>
-                {{ row.status == 'ok' ? 'OK' : (row.status == 'warn' ? 'Aviso' : 'Error') }}
-              </span>
-            </td>
-            <td>
-              <div class="seo-checks">
-                {% for key, passed in row.checks %}
-                  {% set checkTitle = checkTooltips[key]|default('') %}
-                  <span
-                    class="seo-check {{ passed ? '' : 'bad' }}"
-                    {{ (not passed and checkTitle) ? 'title="' ~ checkTitle|e ~ '"' : '' }}
-                  >
-                    {{ key }}: {{ passed ? 'ok' : 'fail' }}
-                  </span>
-                {% endfor %}
-              </div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
+      <tbody id="audit-tbody"></tbody>
     </table>
-  {% endif %}
+  </div>
 
   {% js %}
     (function() {
-      // Entry slideout
-      document.querySelectorAll('.js-entry-slideout').forEach(function(link) {
-        link.addEventListener('click', function(event) {
-          event.preventDefault();
-          const entryId = parseInt(link.getAttribute('data-entry-id') || '0', 10);
-          const siteId = parseInt(link.getAttribute('data-site-id') || '0', 10);
-          if (!entryId || !window.Craft || typeof Craft.createElementEditor !== 'function') {
-            return;
-          }
-          Craft.createElementEditor('craft\\elements\\Entry', {
-            elementId: entryId,
-            siteId: siteId || undefined,
-            slideout: true,
+      var checkTooltips = {
+        title: '{{ 'Missing final title. Define an SEO title or ensure the entry has a title.'|t('pragmatic-seo')|e('js') }}',
+        description: '{{ 'Missing SEO description. Add one to improve search result snippets.'|t('pragmatic-seo')|e('js') }}',
+        canonical: '{{ 'Could not resolve a canonical URL for this entry.'|t('pragmatic-seo')|e('js') }}',
+        image: '{{ 'No SEO image. Recommended for improved social sharing.'|t('pragmatic-seo')|e('js') }}',
+        robots: '{{ 'Check the robots directive for this page.'|t('pragmatic-seo')|e('js') }}',
+        jsonLd: '{{ 'JSON-LD disabled in options for this language/site.'|t('pragmatic-seo')|e('js') }}',
+        hreflang: '{{ 'Not enough localised variants detected to emit hreflang.'|t('pragmatic-seo')|e('js') }}',
+      };
+
+      var btn = document.getElementById('run-audit-btn');
+      var emptyEl = document.getElementById('audit-empty');
+      var progressEl = document.getElementById('audit-progress');
+      var resultsEl = document.getElementById('audit-results');
+      var tbody = document.getElementById('audit-tbody');
+      var truncatedNotice = document.getElementById('audit-truncated-notice');
+      var statusFilter = document.getElementById('audit-status-filter');
+      var currentFilter = 'all';
+
+      function setCount(id, n) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = n > 0 ? '(' + n + ')' : '';
+      }
+
+      function applyFilter(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('#audit-status-filter li[data-filter]').forEach(function(li) {
+          li.classList.toggle('sel', li.getAttribute('data-filter') === filter);
+        });
+        if (!tbody) return;
+        tbody.querySelectorAll('tr[data-status]').forEach(function(tr) {
+          var show = filter === 'all' || tr.getAttribute('data-status') === filter;
+          tr.style.display = show ? '' : 'none';
+        });
+      }
+
+      function renderRows(rows) {
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        var counts = { ok: 0, warn: 0, error: 0 };
+        rows.forEach(function(row) {
+          if (counts[row.status] !== undefined) counts[row.status]++;
+
+          var statusLabel = row.status === 'ok' ? 'OK' : (row.status === 'warn' ? '{{ 'Warning'|t('pragmatic-seo')|e('js') }}' : '{{ 'Error'|t('pragmatic-seo')|e('js') }}');
+          var statusTitle = row.status === 'warn'
+            ? '{{ 'There are recommended SEO warnings to improve visibility.'|t('pragmatic-seo')|e('js') }}'
+            : (row.status === 'error' ? '{{ 'There are important SEO errors that should be fixed soon.'|t('pragmatic-seo')|e('js') }}' : '');
+
+          var checksHtml = '';
+          Object.keys(row.checks).forEach(function(key) {
+            var passed = row.checks[key];
+            var tip = passed ? '' : (checkTooltips[key] || '');
+            var cls = passed ? 'seo-check' : 'seo-check bad';
+            var titleAttr = (!passed && tip) ? ' title="' + tip.replace(/"/g, '&quot;') + '"' : '';
+            checksHtml += '<span class="' + cls + '"' + titleAttr + '>' + key + ': ' + (passed ? 'ok' : 'fail') + '</span>';
           });
+
+          var tr = document.createElement('tr');
+          tr.setAttribute('data-status', row.status);
+          tr.innerHTML =
+            '<td>' +
+              '<a href="#" class="js-entry-slideout" data-entry-id="' + row.entryId + '" data-site-id="' + row.entrySiteId + '">' + escapeHtml(row.entryTitle) + '</a>' +
+              '<div class="light"><code>ID ' + row.entryId + '</code></div>' +
+            '</td>' +
+            '<td>' +
+              '<span class="seo-status seo-status-' + row.status + '"' + (statusTitle ? ' title="' + statusTitle.replace(/"/g, '&quot;') + '"' : '') + '>' + statusLabel + '</span>' +
+            '</td>' +
+            '<td><div class="seo-checks">' + checksHtml + '</div></td>';
+          tbody.appendChild(tr);
+        });
+
+        var total = counts.ok + counts.warn + counts.error;
+        setCount('count-all', total);
+        setCount('count-ok', counts.ok);
+        setCount('count-warn', counts.warn);
+        setCount('count-error', counts.error);
+
+        applyFilter(currentFilter);
+        bindSlideouts(tbody);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function bindSlideouts(root) {
+        (root || document).querySelectorAll('.js-entry-slideout').forEach(function(link) {
+          link.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            var entryId = parseInt(link.getAttribute('data-entry-id') || '0', 10);
+            var siteId = parseInt(link.getAttribute('data-site-id') || '0', 10);
+            if (!entryId || !window.Craft || typeof Craft.createElementEditor !== 'function') return;
+            Craft.createElementEditor('craft\\elements\\Entry', {
+              elementId: entryId,
+              siteId: siteId || undefined,
+              slideout: true,
+            });
+          });
+        });
+      }
+
+      function runAudit() {
+        emptyEl.style.display = 'none';
+        resultsEl.style.display = 'none';
+        progressEl.style.display = '';
+        btn.setAttribute('disabled', 'disabled');
+
+        var params = new URLSearchParams(window.location.search);
+        var url = Craft.getCpUrl('pragmatic-seo/audit/run') + '?' + params.toString();
+
+        fetch(url, {
+          method: 'GET',
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+          .then(function(response) {
+            if (!response.ok) throw new Error('Request failed');
+            return response.json();
+          })
+          .then(function(data) {
+            progressEl.style.display = 'none';
+
+            if (data.truncated) {
+              truncatedNotice.textContent = '{{ 'Audited %scanned% of %total% entries to maintain performance.'|t('pragmatic-seo')|e('js') }}'
+                .replace('%scanned%', data.scannedEntries)
+                .replace('%total%', data.totalEntries);
+              truncatedNotice.style.display = '';
+            } else {
+              truncatedNotice.style.display = 'none';
+            }
+
+            if (!data.rows || data.rows.length === 0) {
+              emptyEl.querySelector('p').textContent = '{{ 'No entries with an SEO field found.'|t('pragmatic-seo')|e('js') }}';
+              emptyEl.style.display = '';
+              statusFilter.style.display = 'none';
+            } else {
+              renderRows(data.rows);
+              resultsEl.style.display = '';
+              statusFilter.style.display = '';
+            }
+          })
+          .catch(function(err) {
+            progressEl.style.display = 'none';
+            emptyEl.querySelector('p').textContent = '{{ 'Failed to run audit. Please try again.'|t('pragmatic-seo')|e('js') }}';
+            emptyEl.style.display = '';
+          })
+          .finally(function() {
+            btn.removeAttribute('disabled');
+          });
+      }
+
+      if (btn) {
+        btn.addEventListener('click', runAudit);
+      }
+
+      document.querySelectorAll('.js-status-filter').forEach(function(link) {
+        link.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          applyFilter(link.getAttribute('data-filter'));
         });
       });
     })();

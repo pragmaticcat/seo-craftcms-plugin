@@ -56,17 +56,26 @@ class DefaultController extends Controller
         $sectionId = (int)Craft::$app->getRequest()->getQueryParam('section', 0);
         $sections = $this->getSeoSectionsForSite($selectedSiteId, $sectionId);
 
-        $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
-        $audit = $this->buildTechnicalAudit($selectedSiteId, $settings, $sectionId);
-
         return $this->renderTemplate('pragmatic-seo/audit', [
             'sites' => $sites,
             'selectedSite' => $selectedSite,
             'selectedSiteId' => $selectedSiteId,
             'sections' => $sections,
             'sectionId' => $sectionId,
-            'audit' => $audit,
         ]);
+    }
+
+    public function actionRunAudit(): Response
+    {
+        $this->requireAcceptsJson();
+        $selectedSite = Cp::requestedSite() ?? Craft::$app->getSites()->getPrimarySite();
+        $siteId = (int)$selectedSite->id;
+        $sectionId = (int)Craft::$app->getRequest()->getParam('section', 0);
+
+        $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($siteId);
+        $audit = $this->buildTechnicalAudit($siteId, $settings, $sectionId);
+
+        return $this->asJson($audit);
     }
 
     public function actionSaveOptions(): Response
