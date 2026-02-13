@@ -4,16 +4,20 @@
 {% set selectedSubnavItem = 'seo' %}
 {% set selectedTab = craft.app.request.getSegment(2) ?? 'content' %}
 
-{# Site persistence: carry the site handle across tabs #}
+{# Carry site handle and section across tabs #}
 {% set _requestedSiteHandle = craft.app.request.getQueryParam('site') %}
+{% set _requestedSection = craft.app.request.getQueryParam('section') %}
+{% set _tabParams = {} %}
+{% if _requestedSiteHandle %}{% set _tabParams = _tabParams|merge({ site: _requestedSiteHandle }) %}{% endif %}
+{% if _requestedSection %}{% set _tabParams = _tabParams|merge({ section: _requestedSection }) %}{% endif %}
 {% set _siteParam = _requestedSiteHandle ? { site: _requestedSiteHandle } : {} %}
 
 {% set tabs = {
-  'content': { label: 'Content'|t('pragmatic-seo'), url: url('pragmatic-seo/content', _siteParam) },
-  'images': { label: 'Images'|t('pragmatic-seo'), url: url('pragmatic-seo/images', _siteParam) },
-  'sitemap': { label: 'Sitemap'|t('pragmatic-seo'), url: url('pragmatic-seo/sitemap', _siteParam) },
-  'audit': { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit', _siteParam) },
-  'options': { label: 'Options'|t('pragmatic-seo'), url: url('pragmatic-seo/options', _siteParam) }
+  'content': { label: 'Content'|t('pragmatic-seo'), url: url('pragmatic-seo/content', _tabParams) },
+  'images': { label: 'Images'|t('pragmatic-seo'), url: url('pragmatic-seo/images', _tabParams) },
+  'sitemap': { label: 'Sitemap'|t('pragmatic-seo'), url: url('pragmatic-seo/sitemap', _tabParams) },
+  'audit': { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit', _tabParams) },
+  'options': { label: 'Options'|t('pragmatic-seo'), url: url('pragmatic-seo/options', _tabParams) }
 } %}
 
 {# Site crumb — identical pattern to _layouts/elementindex.twig #}
