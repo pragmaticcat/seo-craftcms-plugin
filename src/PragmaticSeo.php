@@ -8,9 +8,11 @@ use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\services\Fields;
 use craft\web\UrlManager;
+use craft\web\twig\variables\CraftVariable;
 use craft\events\RegisterCpNavItemsEvent;
 use craft\web\twig\variables\Cp;
 use pragmatic\seo\fields\SeoField;
+use pragmatic\seo\variables\PragmaticSeoVariable;
 use yii\base\Event;
 
 class PragmaticSeo extends Plugin
@@ -56,6 +58,16 @@ class PragmaticSeo extends Plugin
             Fields::EVENT_REGISTER_FIELD_TYPES,
             function (RegisterComponentTypesEvent $event) {
                 $event->types[] = SeoField::class;
+            }
+        );
+
+        Event::on(
+            CraftVariable::class,
+            CraftVariable::EVENT_INIT,
+            function(Event $event) {
+                /** @var CraftVariable $variable */
+                $variable = $event->sender;
+                $variable->set('pragmaticSEO', PragmaticSeoVariable::class);
             }
         );
 

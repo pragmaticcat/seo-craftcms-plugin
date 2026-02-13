@@ -42,6 +42,14 @@ Craft CMS 5 plugin scaffold for a Pragmatic SEO control panel section, with a tw
 - Use the **Sitemap** tab to configure inclusion rules by entry type and entry.
 - Use the **Opciones** tab for additional configuration (page scaffold ready).
 
+### Frontend Twig helper
+- You can render SEO meta tags for an entry with:
+```twig
+{{ pragmaticSEO.render(entry, 'seo')|raw }}
+```
+- Place it inside your frontend layout `<head>`.
+- Replace `'seo'` with your SEO field handle if different.
+
 ## Project structure
 ```
 src/
