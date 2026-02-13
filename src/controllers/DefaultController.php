@@ -42,12 +42,30 @@ class DefaultController extends Controller
             : (int)Craft::$app->getSites()->getCurrentSite()->id;
 
         $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
-        $audit = $this->buildTechnicalAudit($selectedSiteId, $settings);
 
         return $this->renderTemplate('pragmatic-seo/options', [
             'sites' => $sites,
             'selectedSiteId' => $selectedSiteId,
             'settings' => $settings,
+        ]);
+    }
+
+    public function actionAudit(): Response
+    {
+        $request = Craft::$app->getRequest();
+        $sites = Craft::$app->getSites()->getAllSites();
+        $requestedSiteId = (int)$request->getQueryParam('site', 0);
+        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
+        $selectedSiteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
+            ? $requestedSiteId
+            : (int)Craft::$app->getSites()->getCurrentSite()->id;
+
+        $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
+        $audit = $this->buildTechnicalAudit($selectedSiteId, $settings);
+
+        return $this->renderTemplate('pragmatic-seo/audit', [
+            'sites' => $sites,
+            'selectedSiteId' => $selectedSiteId,
             'audit' => $audit,
         ]);
     }

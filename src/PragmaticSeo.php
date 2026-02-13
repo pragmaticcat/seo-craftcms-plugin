@@ -45,6 +45,7 @@ class PragmaticSeo extends Plugin
                 $event->rules['pragmatic-seo/images'] = 'pragmatic-seo/default/images';
                 $event->rules['pragmatic-seo/options'] = 'pragmatic-seo/default/options';
                 $event->rules['pragmatic-seo/options/save'] = 'pragmatic-seo/default/save-options';
+                $event->rules['pragmatic-seo/audit'] = 'pragmatic-seo/default/audit';
                 $event->rules['pragmatic-seo/content'] = 'pragmatic-seo/default/content';
                 $event->rules['pragmatic-seo/sitemap'] = 'pragmatic-seo/default/sitemap';
                 $event->rules['pragmatic-seo/sitemap/save'] = 'pragmatic-seo/default/save-sitemap';

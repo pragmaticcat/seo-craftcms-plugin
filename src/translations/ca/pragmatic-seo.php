@@ -6,6 +6,7 @@ return [
     'Content' => 'Contingut',
     'Images' => 'Imatges',
     'Sitemap' => 'Sitemap',
+    'Audit' => 'Auditoria',
     'Options' => 'Opcions',
     'General' => 'General',
 
