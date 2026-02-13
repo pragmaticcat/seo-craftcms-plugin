@@ -9,6 +9,7 @@ use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\fields\PlainText;
 use craft\web\Controller;
+use pragmatic\seo\PragmaticSeo;
 use pragmatic\seo\fields\SeoField;
 use pragmatic\seo\fields\SeoFieldValue;
 use yii\web\BadRequestHttpException;
@@ -32,7 +33,37 @@ class DefaultController extends Controller
 
     public function actionOptions(): Response
     {
-        return $this->renderTemplate('pragmatic-seo/options');
+        $request = Craft::$app->getRequest();
+        $sites = Craft::$app->getSites()->getAllSites();
+        $requestedSiteId = (int)$request->getQueryParam('site', 0);
+        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
+        $selectedSiteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
+            ? $requestedSiteId
+            : (int)Craft::$app->getSites()->getCurrentSite()->id;
+
+        $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
+
+        return $this->renderTemplate('pragmatic-seo/options', [
+            'sites' => $sites,
+            'selectedSiteId' => $selectedSiteId,
+            'settings' => $settings,
+        ]);
+    }
+
+    public function actionSaveOptions(): Response
+    {
+        $this->requirePostRequest();
+        $request = Craft::$app->getRequest();
+        $siteId = (int)$request->getBodyParam('site', 0);
+        if (!$siteId) {
+            throw new BadRequestHttpException('Missing site.');
+        }
+
+        $settings = (array)$request->getBodyParam('settings', []);
+        PragmaticSeo::$plugin->getMetaSettings()->saveSiteSettings($siteId, $settings);
+
+        Craft::$app->getSession()->setNotice('Opciones SEO guardadas.');
+        return $this->redirectToPostedUrl();
     }
 
     public function actionImages(): Response

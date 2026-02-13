@@ -1,4 +1,5 @@
 {% extends 'pragmatic-seo/_layout' %}
+{% import "_includes/forms" as forms %}
 
 {% set title = 'Options'|t('pragmatic-seo') %}
 {% set selectedTab = 'options' %}
@@ -9,4 +10,177 @@
 ] %}
 
 {% block content %}
+  {% css %}
+    .seo-option-help {
+      margin-top: -8px;
+      margin-bottom: 14px;
+      color: #606d7b;
+      font-size: 12px;
+    }
+    .seo-option-help summary {
+      cursor: pointer;
+      user-select: none;
+      font-weight: 600;
+    }
+    .seo-option-help p {
+      margin: 6px 0 0;
+      line-height: 1.45;
+    }
+  {% endcss %}
+
+  <form method="get" id="options-filter" style="margin-bottom: 14px;">
+    <div style="max-width: 340px;">
+      <label for="site">{{ 'Language'|t('pragmatic-seo') }}</label>
+      <div class="select">
+        <select id="site" name="site">
+          {% for site in sites %}
+            <option value="{{ site.id }}" {{ site.id == selectedSiteId ? 'selected' : '' }}>{{ site.name }} ({{ site.language }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <form method="post" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('pragmatic-seo/default/save-options') }}
+    {{ redirectInput('pragmatic-seo/options', { site: selectedSiteId }) }}
+    <input type="hidden" name="site" value="{{ selectedSiteId }}">
+
+    {{ forms.selectField({
+      label: 'OG type por defecto',
+      name: 'settings[ogType]',
+      value: settings.ogType,
+      options: [
+        { label: 'Auto (article para entries, website para resto)', value: 'auto' },
+        { label: 'article', value: 'article' },
+        { label: 'website', value: 'website' },
+      ],
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Define el tipo Open Graph base para redes sociales. Si eliges Auto, se adapta según el tipo de contenido. <a href="https://ogp.me/" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.textField({
+      label: 'Robots por defecto',
+      name: 'settings[robots]',
+      value: settings.robots,
+      placeholder: 'index,follow',
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Controla indexación y seguimiento para buscadores cuando no hay override específico. <a href="https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.textField({
+      label: 'Twitter site',
+      name: 'settings[twitterSite]',
+      value: settings.twitterSite,
+      placeholder: '@tu_marca',
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Cuenta principal de marca para Twitter/X cards (`twitter:site`). <a href="https://developer.x.com/en/docs/x-for-websites/cards/overview/summary" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.textField({
+      label: 'Twitter creator',
+      name: 'settings[twitterCreator]',
+      value: settings.twitterCreator,
+      placeholder: '@autor',
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Autor del contenido en Twitter/X cards (`twitter:creator`). <a href="https://developer.x.com/en/docs/x-for-websites/cards/overview/summary" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.textField({
+      label: 'Site name override',
+      name: 'settings[siteNameOverride]',
+      value: settings.siteNameOverride,
+      placeholder: 'Nombre de marca para OG',
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Permite sobrescribir el nombre de sitio usado en metatags sociales (`og:site_name`). <a href="https://ogp.me/" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.lightswitchField({
+      label: 'Activar hreflang',
+      name: 'settings[enableHreflang]',
+      on: settings.enableHreflang,
+      value: 1,
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Genera enlaces alternativos por idioma/región para versiones traducidas de la misma URL. <a href="https://developers.google.com/search/docs/specialty/international/localized-versions" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {% set xDefaultOptions = [{ label: 'Ninguno', value: '' }] %}
+    {% for site in sites %}
+      {% set xDefaultOptions = xDefaultOptions|merge([{ label: site.name ~ ' (' ~ site.language ~ ')', value: site.id }]) %}
+    {% endfor %}
+    {{ forms.selectField({
+      label: 'x-default site',
+      name: 'settings[xDefaultSiteId]',
+      value: settings.xDefaultSiteId ?? '',
+      options: xDefaultOptions,
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Define qué idioma/sitio se publicará como fallback general (`hreflang="x-default"`). <a href="https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.selectField({
+      label: 'Modo de JSON-LD',
+      name: 'settings[schemaMode]',
+      value: settings.schemaMode,
+      options: [
+        { label: 'Auto', value: 'auto' },
+        { label: 'Desactivado', value: 'none' },
+        { label: 'Forzar WebPage', value: 'webpage' },
+        { label: 'Forzar Article', value: 'article' },
+      ],
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Controla el tipo de datos estructurados JSON-LD emitidos en el HTML final. <a href="https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.lightswitchField({
+      label: 'Activar metatags article:*',
+      name: 'settings[enableArticleMeta]',
+      on: settings.enableArticleMeta,
+      value: 1,
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Publica metatags editoriales como fecha de publicación/modificación, sección y autor. <a href="https://ogp.me/#type_article" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.lightswitchField({
+      label: 'Activar metadatos avanzados de imagen',
+      name: 'settings[includeImageMeta]',
+      on: settings.includeImageMeta,
+      value: 1,
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Añade `og:image:alt`, `og:image:width` y `og:image:height` cuando hay imagen SEO. <a href="https://ogp.me/#structured" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    <button type="submit" class="btn submit">{{ 'Save'|t('pragmatic-seo') }}</button>
+  </form>
+
+  {% js %}
+    (function() {
+      const form = document.getElementById('options-filter');
+      const site = document.getElementById('site');
+      if (!form || !site) return;
+      site.addEventListener('change', function() {
+        form.submit();
+      });
+    })();
+  {% endjs %}
 {% endblock %}
