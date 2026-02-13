@@ -31,6 +31,7 @@ class MetaSettingsService extends Component
         return [
             'ogType' => $this->sanitizeOgType($row['ogType'] ?? null),
             'robots' => $this->sanitizeRobots($row['robots'] ?? null),
+            'googleSiteVerification' => trim((string)($row['googleSiteVerification'] ?? '')),
             'twitterSite' => trim((string)($row['twitterSite'] ?? '')),
             'twitterCreator' => trim((string)($row['twitterCreator'] ?? '')),
             'siteNameOverride' => trim((string)($row['siteNameOverride'] ?? '')),
@@ -50,6 +51,7 @@ class MetaSettingsService extends Component
             'siteId' => $siteId,
             'ogType' => $this->sanitizeOgType($input['ogType'] ?? null),
             'robots' => $this->sanitizeRobots($input['robots'] ?? null),
+            'googleSiteVerification' => trim((string)($input['googleSiteVerification'] ?? '')),
             'twitterSite' => trim((string)($input['twitterSite'] ?? '')),
             'twitterCreator' => trim((string)($input['twitterCreator'] ?? '')),
             'siteNameOverride' => trim((string)($input['siteNameOverride'] ?? '')),
@@ -78,6 +80,7 @@ class MetaSettingsService extends Component
         return [
             'ogType' => 'auto',
             'robots' => '',
+            'googleSiteVerification' => '',
             'twitterSite' => '',
             'twitterCreator' => '',
             'siteNameOverride' => '',
@@ -120,6 +123,7 @@ class MetaSettingsService extends Component
                 'siteId' => Schema::TYPE_INTEGER . ' NOT NULL',
                 'ogType' => Schema::TYPE_STRING . "(16) NOT NULL DEFAULT 'auto'",
                 'robots' => Schema::TYPE_STRING . '(128)',
+                'googleSiteVerification' => Schema::TYPE_STRING . '(255)',
                 'twitterSite' => Schema::TYPE_STRING . '(64)',
                 'twitterCreator' => Schema::TYPE_STRING . '(64)',
                 'siteNameOverride' => Schema::TYPE_STRING . '(255)',
@@ -134,6 +138,10 @@ class MetaSettingsService extends Component
             ])->execute();
         }
 
+        if (!$db->columnExists(self::TABLE, 'googleSiteVerification')) {
+            $db->createCommand()->addColumn(self::TABLE, 'googleSiteVerification', Schema::TYPE_STRING . '(255)')->execute();
+        }
+
         try {
             $db->createCommand()->createIndex(
                 'pragmaticseo_meta_site_settings_siteId_unique',
@@ -146,4 +154,3 @@ class MetaSettingsService extends Component
         }
     }
 }
-

@@ -42,11 +42,13 @@ class DefaultController extends Controller
             : (int)Craft::$app->getSites()->getCurrentSite()->id;
 
         $settings = PragmaticSeo::$plugin->getMetaSettings()->getSiteSettings($selectedSiteId);
+        $audit = $this->buildTechnicalAudit($selectedSiteId, $settings);
 
         return $this->renderTemplate('pragmatic-seo/options', [
             'sites' => $sites,
             'selectedSiteId' => $selectedSiteId,
             'settings' => $settings,
+            'audit' => $audit,
         ]);
     }
 
@@ -777,6 +779,90 @@ class DefaultController extends Controller
         if ($asset->canSetProperty('alt')) {
             $asset->alt = $value;
         }
+    }
+
+    private function buildTechnicalAudit(int $siteId, array $settings): array
+    {
+        $maxEntries = 300;
+        $entryQuery = Entry::find()->siteId($siteId)->status(null);
+        $totalEntries = (int)(clone $entryQuery)->count();
+        $entries = (clone $entryQuery)->limit($maxEntries)->all();
+        $sites = Craft::$app->getSites()->getAllSites();
+        $isMultiSite = count($sites) > 1;
+
+        $rows = [];
+        $summary = [
+            'rows' => 0,
+            'ok' => 0,
+            'warn' => 0,
+            'error' => 0,
+        ];
+
+        foreach ($entries as $entry) {
+            foreach ($entry->getFieldLayout()?->getCustomFields() ?? [] as $field) {
+                if (!$field instanceof SeoField) {
+                    continue;
+                }
+
+                $value = $entry->getFieldValue($field->handle);
+                if (!$value instanceof SeoFieldValue) {
+                    $value = $field->normalizeValue($value, $entry);
+                }
+                if (!$value instanceof SeoFieldValue) {
+                    $value = new SeoFieldValue();
+                }
+
+                $checks = [
+                    'title' => trim((string)$value->title) !== '' || trim((string)$entry->title) !== '',
+                    'description' => trim((string)$value->description) !== '',
+                    'canonical' => !empty($entry->url),
+                    'image' => !empty($value->imageId),
+                    'robots' => true,
+                    'jsonLd' => (string)($settings['schemaMode'] ?? 'auto') !== 'none',
+                    'hreflang' => true,
+                ];
+
+                if (!empty($settings['enableHreflang']) && $isMultiSite) {
+                    $localizedUrls = 0;
+                    $canonicalId = (int)($entry->canonicalId ?? $entry->id ?? 0);
+                    foreach ($sites as $site) {
+                        $localizedEntry = Craft::$app->getElements()->getElementById($canonicalId, Entry::class, (int)$site->id);
+                        if ($localizedEntry && !empty($localizedEntry->url)) {
+                            $localizedUrls++;
+                        }
+                    }
+                    $checks['hreflang'] = $localizedUrls > 1;
+                }
+
+                $errorCount = (!$checks['title'] ? 1 : 0) + (!$checks['canonical'] ? 1 : 0);
+                $warnCount = (!$checks['description'] ? 1 : 0)
+                    + (!$checks['image'] ? 1 : 0)
+                    + (!$checks['hreflang'] ? 1 : 0)
+                    + (!$checks['jsonLd'] ? 1 : 0);
+
+                $status = $errorCount > 0 ? 'error' : ($warnCount > 0 ? 'warn' : 'ok');
+                $summary['rows']++;
+                $summary[$status]++;
+
+                $rows[] = [
+                    'entryId' => (int)$entry->id,
+                    'entryTitle' => $entry->title ?: 'Entry #' . $entry->id,
+                    'entryUrl' => $entry->url,
+                    'entryCpUrl' => $entry->cpEditUrl,
+                    'fieldHandle' => $field->handle,
+                    'status' => $status,
+                    'checks' => $checks,
+                ];
+            }
+        }
+
+        return [
+            'summary' => $summary,
+            'rows' => $rows,
+            'truncated' => $totalEntries > $maxEntries,
+            'scannedEntries' => count($entries),
+            'totalEntries' => $totalEntries,
+        ];
     }
 
     private function buildSitemapXml(array $urls): string

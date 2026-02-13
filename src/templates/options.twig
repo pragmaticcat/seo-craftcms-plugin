@@ -26,6 +26,48 @@
       margin: 6px 0 0;
       line-height: 1.45;
     }
+    .seo-audit {
+      margin-top: 28px;
+    }
+    .seo-audit-summary {
+      display: flex;
+      gap: 10px;
+      margin: 8px 0 14px;
+    }
+    .seo-audit-chip {
+      background: #f3f4f6;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #374151;
+    }
+    .seo-status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .seo-status-ok { background: #dcfce7; color: #166534; }
+    .seo-status-warn { background: #fef3c7; color: #92400e; }
+    .seo-status-error { background: #fee2e2; color: #991b1b; }
+    .seo-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .seo-check {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+    .seo-check.bad {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
   {% endcss %}
 
   <form method="get" id="options-filter" style="margin-bottom: 14px;">
@@ -71,6 +113,17 @@
     <details class="seo-option-help">
       <summary>¿Qué hace este valor?</summary>
       <p>Controla indexación y seguimiento para buscadores cuando no hay override específico. <a href="https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag" target="_blank" rel="noopener">Saber más</a></p>
+    </details>
+
+    {{ forms.textField({
+      label: 'Google site verification',
+      name: 'settings[googleSiteVerification]',
+      value: settings.googleSiteVerification,
+      placeholder: 'token de Search Console',
+    }) }}
+    <details class="seo-option-help">
+      <summary>¿Qué hace este valor?</summary>
+      <p>Publica la meta tag de verificación de propiedad para Google Search Console en este sitio/idioma. <a href="https://support.google.com/webmasters/answer/9008080" target="_blank" rel="noopener">Saber más</a></p>
     </details>
 
     {{ forms.textField({
@@ -172,6 +225,62 @@
 
     <button type="submit" class="btn submit">{{ 'Save'|t('pragmatic-seo') }}</button>
   </form>
+
+  <section class="seo-audit">
+    <h2 style="margin-bottom: 4px;">Informe técnico SEO</h2>
+    <p class="light" style="margin-top: 0;">Comprobaciones automáticas para mejorar cobertura e interpretación en Search Console.</p>
+
+    <div class="seo-audit-summary">
+      <span class="seo-audit-chip">Filas auditadas: {{ audit.summary.rows }}</span>
+      <span class="seo-audit-chip">OK: {{ audit.summary.ok }}</span>
+      <span class="seo-audit-chip">Avisos: {{ audit.summary.warn }}</span>
+      <span class="seo-audit-chip">Errores: {{ audit.summary.error }}</span>
+    </div>
+
+    {% if audit.truncated %}
+      <p class="light">Se han auditado {{ audit.scannedEntries }} entradas de {{ audit.totalEntries }} para mantener rendimiento.</p>
+    {% endif %}
+
+    {% if audit.rows is empty %}
+      <p>No hay entradas con campo SEO para auditar.</p>
+    {% else %}
+      <table class="data fullwidth">
+        <thead>
+          <tr>
+            <th>Entry</th>
+            <th>Field</th>
+            <th>Estado</th>
+            <th>Checks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in audit.rows %}
+            <tr>
+              <td>
+                <a href="{{ row.entryCpUrl ?: '#' }}" {{ row.entryCpUrl ? '' : 'class="disabled"' }}>{{ row.entryTitle }}</a>
+                <div class="light"><code>ID {{ row.entryId }}</code></div>
+              </td>
+              <td><code>{{ row.fieldHandle }}</code></td>
+              <td>
+                <span class="seo-status seo-status-{{ row.status }}">
+                  {{ row.status == 'ok' ? 'OK' : (row.status == 'warn' ? 'Aviso' : 'Error') }}
+                </span>
+              </td>
+              <td>
+                <div class="seo-checks">
+                  {% for key, passed in row.checks %}
+                    <span class="seo-check {{ passed ? '' : 'bad' }}">
+                      {{ key }}: {{ passed ? 'ok' : 'fail' }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
 
   {% js %}
     (function() {

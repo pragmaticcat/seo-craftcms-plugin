@@ -90,6 +90,9 @@ class PragmaticSeoVariable
         if ($robots !== null) {
             $tags[] = $this->metaTag('name', 'robots', $robots);
         }
+        if (!empty($settings['googleSiteVerification'])) {
+            $tags[] = $this->metaTag('name', 'google-site-verification', (string)$settings['googleSiteVerification']);
+        }
 
         if ($canonicalUrl !== null) {
             $tags[] = '<link rel="canonical" href="' . $this->e($canonicalUrl) . '">';
@@ -349,6 +352,7 @@ class PragmaticSeoVariable
             return [
                 'ogType' => 'auto',
                 'robots' => '',
+                'googleSiteVerification' => '',
                 'twitterSite' => '',
                 'twitterCreator' => '',
                 'siteNameOverride' => '',
