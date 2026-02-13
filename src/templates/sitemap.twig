@@ -9,6 +9,27 @@
   { label: 'Sitemap'|t('pragmatic-seo'), url: url('pragmatic-seo/sitemap') },
 ] %}
 
+{% block sidebar %}
+  {% if entryTypeRows is not empty %}
+    <nav aria-label="{{ 'Entry types'|t('pragmatic-seo') }}">
+      <ul class="nav">
+        {% if pageEntryTypeRows is not empty %}
+          <li>
+            <a href="#section-pages">Pages</a>
+          </li>
+        {% endif %}
+        {% for row in entryTypeRows %}
+          <li>
+            <a href="#section-{{ row.entryTypeId }}">
+              {{ row.sectionName ?: row.entryTypeName }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  {% endif %}
+{% endblock %}
+
 {% block content %}
   {% set hasRows = (entryTypeRows is not empty) or (pageEntryTypeRows is not empty) %}
   <form method="post" accept-charset="UTF-8">
@@ -29,7 +50,7 @@
         </thead>
         <tbody>
           {% if pageEntryTypeRows is not empty %}
-            <tr>
+            <tr id="section-pages">
               <td>
                 <details>
                   <summary><strong>Page</strong> <span class="light">({{ pageEntryTypeRows|length }} entry types)</span></summary>
@@ -111,8 +132,7 @@
           {% endif %}
 
           {% for row in entryTypeRows %}
-            {% set rowId = 'entry-type-' ~ row.entryTypeId %}
-            <tr>
+            <tr id="section-{{ row.entryTypeId }}">
               <td>
                 <details>
                   <summary><strong>{{ row.sectionName ?: row.entryTypeName }}</strong> <span class="light">({{ row.entryTypeName }} · {{ row.seoHandle }})</span></summary>

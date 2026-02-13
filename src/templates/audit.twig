@@ -8,6 +8,43 @@
   { label: 'Audit'|t('pragmatic-seo'), url: url('pragmatic-seo/audit') },
 ] %}
 
+{% block sidebar %}
+  <nav aria-label="{{ 'Audit status'|t('pragmatic-seo') }}">
+    <ul class="nav">
+      <li class="sel">
+        <a href="#" class="js-status-filter" data-status="">
+          {{ 'All'|t('pragmatic-seo') }}
+          <span class="light"> ({{ audit.summary.rows }})</span>
+        </a>
+      </li>
+      {% if audit.summary.error %}
+        <li>
+          <a href="#" class="js-status-filter" data-status="error">
+            {{ 'Errors'|t('pragmatic-seo') }}
+            <span class="light"> ({{ audit.summary.error }})</span>
+          </a>
+        </li>
+      {% endif %}
+      {% if audit.summary.warn %}
+        <li>
+          <a href="#" class="js-status-filter" data-status="warn">
+            {{ 'Warnings'|t('pragmatic-seo') }}
+            <span class="light"> ({{ audit.summary.warn }})</span>
+          </a>
+        </li>
+      {% endif %}
+      {% if audit.summary.ok %}
+        <li>
+          <a href="#" class="js-status-filter" data-status="ok">
+            {{ 'OK'|t('pragmatic-seo') }}
+            <span class="light"> ({{ audit.summary.ok }})</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endblock %}
+
 {% block content %}
   {% css %}
     .seo-audit-summary {
@@ -64,13 +101,6 @@
     hreflang: 'No se han detectado suficientes variantes localizadas para emitir hreflang.',
   } %}
 
-  <div class="seo-audit-summary">
-    <span class="seo-audit-chip">Filas auditadas: {{ audit.summary.rows }}</span>
-    <span class="seo-audit-chip">OK: {{ audit.summary.ok }}</span>
-    <span class="seo-audit-chip">Avisos: {{ audit.summary.warn }}</span>
-    <span class="seo-audit-chip">Errores: {{ audit.summary.error }}</span>
-  </div>
-
   {% if audit.truncated %}
     <p class="light">Se han auditado {{ audit.scannedEntries }} entradas de {{ audit.totalEntries }} para mantener rendimiento.</p>
   {% endif %}
@@ -78,43 +108,43 @@
   {% if audit.rows is empty %}
     <p>No hay entradas con campo SEO para auditar.</p>
   {% else %}
-      <table class="data fullwidth">
-        <thead>
-          <tr>
-            <th>Entry</th>
-            <th>Estado</th>
-            <th>Checks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in audit.rows %}
-            <tr>
-              <td>
-                <a href="#" class="js-entry-slideout" data-entry-id="{{ row.entryId }}" data-site-id="{{ row.entrySiteId }}">{{ row.entryTitle }}</a>
-                <div class="light"><code>ID {{ row.entryId }}</code></div>
-              </td>
-              <td>
-                {% set statusTitle = row.status == 'warn'
-                  ? 'Hay avisos SEO recomendados para mejorar visibilidad.'
-                  : (row.status == 'error'
-                    ? 'Hay errores SEO importantes que conviene corregir cuanto antes.'
-                    : '') %}
-                <span class="seo-status seo-status-{{ row.status }}" {{ statusTitle ? 'title="' ~ statusTitle|e ~ '"' : '' }}>
-                  {{ row.status == 'ok' ? 'OK' : (row.status == 'warn' ? 'Aviso' : 'Error') }}
-                </span>
-              </td>
-              <td>
-                <div class="seo-checks">
-                  {% for key, passed in row.checks %}
-                    {% set checkTitle = checkTooltips[key]|default('') %}
-                    <span
-                      class="seo-check {{ passed ? '' : 'bad' }}"
-                      {{ (not passed and checkTitle) ? 'title="' ~ checkTitle|e ~ '"' : '' }}
-                    >
-                      {{ key }}: {{ passed ? 'ok' : 'fail' }}
-                    </span>
-                  {% endfor %}
-                </div>
+    <table id="audit-table" class="data fullwidth">
+      <thead>
+        <tr>
+          <th>Entry</th>
+          <th>Estado</th>
+          <th>Checks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in audit.rows %}
+          <tr data-status="{{ row.status }}">
+            <td>
+              <a href="#" class="js-entry-slideout" data-entry-id="{{ row.entryId }}" data-site-id="{{ row.entrySiteId }}">{{ row.entryTitle }}</a>
+              <div class="light"><code>ID {{ row.entryId }}</code></div>
+            </td>
+            <td>
+              {% set statusTitle = row.status == 'warn'
+                ? 'Hay avisos SEO recomendados para mejorar visibilidad.'
+                : (row.status == 'error'
+                  ? 'Hay errores SEO importantes que conviene corregir cuanto antes.'
+                  : '') %}
+              <span class="seo-status seo-status-{{ row.status }}" {{ statusTitle ? 'title="' ~ statusTitle|e ~ '"' : '' }}>
+                {{ row.status == 'ok' ? 'OK' : (row.status == 'warn' ? 'Aviso' : 'Error') }}
+              </span>
+            </td>
+            <td>
+              <div class="seo-checks">
+                {% for key, passed in row.checks %}
+                  {% set checkTitle = checkTooltips[key]|default('') %}
+                  <span
+                    class="seo-check {{ passed ? '' : 'bad' }}"
+                    {{ (not passed and checkTitle) ? 'title="' ~ checkTitle|e ~ '"' : '' }}
+                  >
+                    {{ key }}: {{ passed ? 'ok' : 'fail' }}
+                  </span>
+                {% endfor %}
+              </div>
             </td>
           </tr>
         {% endfor %}
@@ -124,6 +154,22 @@
 
   {% js %}
     (function() {
+      // Status filter
+      document.querySelectorAll('.js-status-filter').forEach(function(link) {
+        link.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          const status = link.getAttribute('data-status') || '';
+          document.querySelectorAll('.js-status-filter').forEach(function(l) {
+            l.closest('li')?.classList.remove('sel');
+          });
+          link.closest('li')?.classList.add('sel');
+          document.querySelectorAll('#audit-table tbody tr').forEach(function(row) {
+            row.style.display = (!status || row.getAttribute('data-status') === status) ? '' : 'none';
+          });
+        });
+      });
+
+      // Entry slideout
       document.querySelectorAll('.js-entry-slideout').forEach(function(link) {
         link.addEventListener('click', function(event) {
           event.preventDefault();
@@ -132,7 +178,6 @@
           if (!entryId || !window.Craft || typeof Craft.createElementEditor !== 'function') {
             return;
           }
-
           Craft.createElementEditor('craft\\elements\\Entry', {
             elementId: entryId,
             siteId: siteId || undefined,
