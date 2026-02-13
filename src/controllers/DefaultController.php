@@ -731,7 +731,7 @@ class DefaultController extends Controller
                 continue;
             }
 
-            $section = $entryType->sectionId ? Craft::$app->entries->getSectionById((int)$entryType->sectionId) : null;
+            $section = method_exists($entryType, 'getSection') ? $entryType->getSection() : null;
 
             $rows[] = [
                 'entryTypeId' => $entryType->id,
