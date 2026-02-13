@@ -31,6 +31,7 @@ return [
     'Search' => 'Cercar',
     'Entry title' => 'Títol de l\'entrada',
     'Section' => 'Secció',
+    'Language' => 'Idioma',
     'All' => 'Totes',
     'Per page' => 'Per pàgina',
 

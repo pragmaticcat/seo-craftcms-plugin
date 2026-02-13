@@ -113,13 +113,19 @@ class DefaultController extends Controller
         $request = Craft::$app->getRequest();
         $search = (string)$request->getParam('q', '');
         $sectionId = (int)$request->getParam('section', 0);
+        $requestedSiteId = (int)$request->getParam('site', 0);
         $page = max(1, (int)$request->getParam('page', 1));
         $perPage = (int)$request->getParam('perPage', 50);
         if (!in_array($perPage, [50, 100, 250], true)) {
             $perPage = 50;
         }
 
-        $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+        $sitesService = Craft::$app->getSites();
+        $sites = $sitesService->getAllSites();
+        $siteIds = array_map(fn($site) => (int)$site->id, $sites);
+        $siteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
+            ? $requestedSiteId
+            : (int)$sitesService->getCurrentSite()->id;
         $sectionsById = [];
         $availableSectionIds = [];
         $sectionEntries = Entry::find()
@@ -224,6 +230,8 @@ class DefaultController extends Controller
             'entryRowCounts' => $entryRowCounts,
             'sections' => $sections,
             'sectionId' => $sectionId,
+            'sites' => $sites,
+            'selectedSiteId' => $siteId,
             'imageElementsById' => $imageElementsById,
             'search' => $search,
             'perPage' => $perPage,
@@ -387,11 +395,16 @@ class DefaultController extends Controller
         $entryId = (int)($row['entryId'] ?? 0);
         $fieldHandle = (string)($row['fieldHandle'] ?? '');
         $values = (array)($row['values'] ?? []);
+        $requestedSiteId = (int)Craft::$app->getRequest()->getBodyParam('site', 0);
         if (!$entryId || $fieldHandle === '') {
             throw new BadRequestHttpException('Missing entry data.');
         }
 
-        $siteId = Craft::$app->getSites()->getCurrentSite()->id;
+        $sitesService = Craft::$app->getSites();
+        $siteIds = array_map(fn($site) => (int)$site->id, $sitesService->getAllSites());
+        $siteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
+            ? $requestedSiteId
+            : (int)$sitesService->getCurrentSite()->id;
         $entry = Craft::$app->getElements()->getElementById($entryId, Entry::class, $siteId);
         if (!$entry) {
             throw new BadRequestHttpException('Entry not found.');

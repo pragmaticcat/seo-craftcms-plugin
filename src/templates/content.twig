@@ -33,6 +33,16 @@
         </div>
       </div>
       <div>
+        <label for="site">{{ 'Language'|t('pragmatic-seo') }}</label>
+        <div class="select">
+          <select id="site" name="site">
+            {% for site in sites %}
+              <option value="{{ site.id }}" {{ site.id == selectedSiteId ? 'selected' : '' }}>{{ site.name }} ({{ site.language }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
         <label for="perPage">{{ 'Per page'|t('pragmatic-seo') }}</label>
         <div class="select">
           <select id="perPage" name="perPage">
@@ -48,7 +58,8 @@
   <form method="post" accept-charset="UTF-8">
     {{ csrfInput() }}
     {{ actionInput('pragmatic-seo/default/save-content') }}
-    {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId }) }}
+    <input type="hidden" name="site" value="{{ selectedSiteId }}">
+    {{ redirectInput('pragmatic-seo/content', { q: search, perPage: perPage, page: page, section: sectionId, site: selectedSiteId }) }}
 
     <table class="data fullwidth" style="margin-top: 16px;">
       <thead>
@@ -70,7 +81,7 @@
           <tr{{ isFirstOfGroup and not loop.first ? ' class="entry-group-border"' : '' }} data-entry-id="{{ entryId }}">
             {% if isFirstOfGroup %}
               <td rowspan="{{ entryRowCounts[entryId] }}" style="vertical-align: top;">
-                <a href="#" class="js-entry-slideout" data-entry-id="{{ entryId }}">{{ row.entry.title|default('Entry #' ~ entryId) }}</a>
+                <a href="#" class="js-entry-slideout" data-entry-id="{{ entryId }}" data-site-id="{{ row.entry.siteId }}">{{ row.entry.title|default('Entry #' ~ entryId) }}</a>
                 <div class="light">{{ row.entry.section.name ?? row.entry.type.name ?? 'No section or type' }}</div>
               </td>
             {% endif %}
@@ -114,13 +125,13 @@
       {% if page == 1 %}
         <span class="btn disabled">{{ 'Prev'|t('pragmatic-seo') }}</span>
       {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId }) }}">{{ 'Prev'|t('pragmatic-seo') }}</a>
+        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: prevPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Prev'|t('pragmatic-seo') }}</a>
       {% endif %}
       <div>{{ 'Page'|t('pragmatic-seo') }} {{ page }} / {{ totalPages }}</div>
       {% if page == totalPages %}
         <span class="btn disabled">{{ 'Next'|t('pragmatic-seo') }}</span>
       {% else %}
-        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId }) }}">{{ 'Next'|t('pragmatic-seo') }}</a>
+        <a class="btn" href="{{ url('pragmatic-seo/content', { q: search, perPage: perPage, page: nextPage, section: sectionId, site: selectedSiteId }) }}">{{ 'Next'|t('pragmatic-seo') }}</a>
       {% endif %}
     </div>
   </div>
@@ -130,6 +141,7 @@
       const filterForm = document.getElementById('entries-filter');
       const searchInput = document.getElementById('q');
       const sectionSelect = document.getElementById('section');
+      const siteSelect = document.getElementById('site');
       const perPageSelect = document.getElementById('perPage');
 
       if (filterForm) {
@@ -139,14 +151,15 @@
           filterForm.submit();
         }
 
-        let searchTimer = null;
         if (searchInput) {
-          searchInput.addEventListener('input', function() {
-            if (searchTimer) clearTimeout(searchTimer);
-            searchTimer = setTimeout(resetPageAndSubmit, 300);
+          searchInput.addEventListener('keydown', function(event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            resetPageAndSubmit();
           });
+          searchInput.addEventListener('change', resetPageAndSubmit);
         }
-        [sectionSelect, perPageSelect].forEach(function(el) {
+        [sectionSelect, siteSelect, perPageSelect].forEach(function(el) {
           if (el) el.addEventListener('change', resetPageAndSubmit);
         });
       }
@@ -155,9 +168,11 @@
         link.addEventListener('click', function(ev) {
           ev.preventDefault();
           const entryId = parseInt(link.getAttribute('data-entry-id'), 10);
+          const siteId = parseInt(link.getAttribute('data-site-id'), 10);
           if (!entryId || !window.Craft) return;
           Craft.createElementEditor('craft\\elements\\Entry', {
             elementId: entryId,
+            siteId: siteId || undefined,
             slideout: true
           });
         });

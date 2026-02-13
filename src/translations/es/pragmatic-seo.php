@@ -31,6 +31,7 @@ return [
     'Search' => 'Search',
     'Entry title' => 'Entry title',
     'Section' => 'Section',
+    'Language' => 'Idioma',
     'All' => 'All',
     'Per page' => 'Per page',
 
