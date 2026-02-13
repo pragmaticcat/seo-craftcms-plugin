@@ -9,6 +9,28 @@
   { label: 'Content'|t('pragmatic-seo'), url: url('pragmatic-seo/content') },
 ] %}
 
+{% block sidebar %}
+  <nav aria-label="{{ 'Sections'|t('pragmatic-seo') }}">
+    <ul class="nav">
+      <li class="{{ not sectionId ? 'sel' : '' }}">
+        <a href="#" class="js-section-link" data-section-id="">
+          {{ 'All entries'|t('pragmatic-seo') }}
+        </a>
+      </li>
+      {% if sections|length %}
+        <li class="heading"><span>{{ 'Sections'|t('pragmatic-seo') }}</span></li>
+        {% for section in sections %}
+          <li class="{{ section.id == sectionId ? 'sel' : '' }}">
+            <a href="#" class="js-section-link" data-section-id="{{ section.id }}">
+              {{ section.name }}
+            </a>
+          </li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </nav>
+{% endblock %}
+
 {% block content %}
   {% css %}
     tr.entry-group-border > td { border-top: 2px solid #d1d5db; }
@@ -18,20 +40,10 @@
     <form method="get" id="entries-filter" class="flex" style="gap: 12px; align-items: flex-end;">
       <input type="hidden" name="page" value="1">
       <input type="hidden" name="site" value="{{ selectedSite.handle }}">
+      <input type="hidden" id="section-input" name="section" value="{{ sectionId }}">
       <div>
         <label for="q">{{ 'Search'|t('pragmatic-seo') }}</label>
         <input class="text" type="text" id="q" name="q" value="{{ search }}" placeholder="{{ 'Entry title'|t('pragmatic-seo') }}">
-      </div>
-      <div>
-        <label for="section">{{ 'Section'|t('pragmatic-seo') }}</label>
-        <div class="select">
-          <select id="section" name="section">
-            <option value="">{{ 'All'|t('pragmatic-seo') }}</option>
-            {% for section in sections %}
-              <option value="{{ section.id }}" {{ section.id == sectionId ? 'selected' : '' }}>{{ section.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
       </div>
       <div>
         <label for="perPage">{{ 'Per page'|t('pragmatic-seo') }}</label>
@@ -133,7 +145,7 @@
     (function() {
       const filterForm = document.getElementById('entries-filter');
       const searchInput = document.getElementById('q');
-      const sectionSelect = document.getElementById('section');
+      const sectionInput = document.getElementById('section-input');
       const perPageSelect = document.getElementById('perPage');
       const resultsContainer = document.getElementById('content-results');
 
@@ -172,7 +184,7 @@
           const url = new URL(fullUrl, window.location.origin);
           const params = url.searchParams;
           if (searchInput) searchInput.value = params.get('q') || '';
-          if (sectionSelect) sectionSelect.value = params.get('section') || '';
+          if (sectionInput) sectionInput.value = params.get('section') || '';
           if (perPageSelect) perPageSelect.value = params.get('perPage') || (perPageSelect.value || '50');
           if (pageInput) pageInput.value = params.get('page') || '1';
         }
@@ -204,18 +216,6 @@
             .then(function(html) {
               const doc = new DOMParser().parseFromString(html, 'text/html');
               const nextResults = doc.getElementById('content-results');
-              const nextSectionSelect = doc.getElementById('section');
-              const selectedSection = sectionSelect ? sectionSelect.value : '';
-
-              if (sectionSelect && nextSectionSelect) {
-                sectionSelect.innerHTML = nextSectionSelect.innerHTML;
-                if (selectedSection && sectionSelect.querySelector('option[value="' + CSS.escape(selectedSection) + '"]')) {
-                  sectionSelect.value = selectedSection;
-                } else {
-                  sectionSelect.value = '';
-                }
-              }
-
               if (!nextResults) return;
               resultsContainer.innerHTML = nextResults.innerHTML;
               if (window.Craft && typeof Craft.initUiElements === 'function') {
@@ -281,14 +281,26 @@
           submitViaAjax();
         }
 
+        // Sidebar section links
+        document.querySelectorAll('.js-section-link').forEach(function(link) {
+          link.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            const sectionId = link.getAttribute('data-section-id') || '';
+            if (sectionInput) sectionInput.value = sectionId;
+            // Update sel state in sidebar
+            document.querySelectorAll('.js-section-link').forEach(function(l) {
+              l.closest('li')?.classList.remove('sel');
+            });
+            link.closest('li')?.classList.add('sel');
+            resetPageAndSubmit();
+          });
+        });
+
         if (searchInput) {
           searchInput.addEventListener('input', function() {
             if (searchTimer) clearTimeout(searchTimer);
             searchTimer = setTimeout(resetPageAndSubmit, 300);
           });
-        }
-        if (sectionSelect) {
-          sectionSelect.addEventListener('change', resetPageAndSubmit);
         }
         if (perPageSelect) {
           perPageSelect.addEventListener('change', resetPageAndSubmit);
