@@ -41,6 +41,10 @@
   {% if rows is empty %}
     <p>{{ 'No entries with an SEO field in their layout.'|t('pragmatic-seo') }}</p>
   {% else %}
+    <div style="margin-bottom: 12px;">
+      <button id="save-all-btn" class="btn submit" type="button">{{ 'Save all'|t('pragmatic-seo') }}</button>
+    </div>
+
     <form id="sitemap-form" method="post" accept-charset="UTF-8">
       {{ csrfInput() }}
       {{ actionInput('pragmatic-seo/default/save-sitemap') }}
@@ -174,6 +178,30 @@
           });
         });
       });
+
+      // Save all
+      var saveAllBtn = document.getElementById('save-all-btn');
+      if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', function() {
+          saveAllBtn.setAttribute('disabled', 'disabled');
+          var formData = new FormData(form);
+          formData.set('saveAll', '1');
+
+          fetch(Craft.getCpUrl('pragmatic-seo/sitemap/save'), {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          })
+            .then(function(r) { if (!r.ok) throw new Error('Failed'); return r.json(); })
+            .then(function(data) {
+              if (!data || data.success !== true) throw new Error((data && data.message) || 'Failed');
+              displayNotice(data.message || 'Sitemap guardado.', false);
+            })
+            .catch(function(err) { displayNotice((err && err.message) || 'Error al guardar.', true); })
+            .finally(function() { saveAllBtn.removeAttribute('disabled'); });
+        });
+      }
 
       // AJAX per-row save
       function displayNotice(message, isError) {

@@ -335,68 +335,81 @@ class DefaultController extends Controller
     {
         $this->requirePostRequest();
         $request = Craft::$app->getRequest();
+        $saveAll = (bool)$request->getBodyParam('saveAll');
         $saveRow = $request->getBodyParam('saveRow');
         $entries = (array)$request->getBodyParam('entries', []);
-        if ($saveRow === null || !isset($entries[$saveRow])) {
-            throw new BadRequestHttpException('Invalid entry payload.');
-        }
-
-        $row = $entries[$saveRow];
-        $entryId = (int)($row['entryId'] ?? 0);
-        $fieldHandle = (string)($row['fieldHandle'] ?? '');
-        $requestedSiteId = (int)$request->getBodyParam('site', 0);
-        if (!$entryId || $fieldHandle === '') {
-            throw new BadRequestHttpException('Missing entry data.');
-        }
 
         $sitesService = Craft::$app->getSites();
+        $requestedSiteId = (int)$request->getBodyParam('site', 0);
         $siteIds = array_map(fn($site) => (int)$site->id, $sitesService->getAllSites());
         $siteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
             ? $requestedSiteId
             : (int)$sitesService->getCurrentSite()->id;
 
-        $entry = Craft::$app->getElements()->getElementById($entryId, Entry::class, $siteId);
-        if (!$entry) {
-            throw new BadRequestHttpException('Entry not found.');
+        $rowsToSave = $saveAll ? $entries : (isset($entries[$saveRow]) ? [$saveRow => $entries[$saveRow]] : []);
+
+        if (empty($rowsToSave)) {
+            throw new BadRequestHttpException('Invalid entry payload.');
         }
 
-        $field = $entry->getFieldLayout()?->getFieldByHandle($fieldHandle);
-        if (!$field instanceof SeoField) {
-            throw new BadRequestHttpException('Invalid SEO field for this entry.');
+        $elements = Craft::$app->getElements();
+        $errors = [];
+
+        foreach ($rowsToSave as $row) {
+            $entryId = (int)($row['entryId'] ?? 0);
+            $fieldHandle = (string)($row['fieldHandle'] ?? '');
+            if (!$entryId || $fieldHandle === '') {
+                continue;
+            }
+
+            $entry = $elements->getElementById($entryId, Entry::class, $siteId);
+            if (!$entry) {
+                continue;
+            }
+
+            $field = $entry->getFieldLayout()?->getFieldByHandle($fieldHandle);
+            if (!$field instanceof SeoField) {
+                continue;
+            }
+
+            $current = $entry->getFieldValue($fieldHandle);
+            if (!$current instanceof SeoFieldValue) {
+                $current = $field->normalizeValue($current, $entry);
+            }
+            if (!$current instanceof SeoFieldValue) {
+                $current = new SeoFieldValue();
+            }
+
+            $entry->setFieldValue($fieldHandle, [
+                'title' => $current->title,
+                'description' => $current->description,
+                'imageId' => $current->imageId,
+                'imageDescription' => $current->imageDescription,
+                'sitemapEnabled' => !empty($row['sitemapEnabled']),
+                'sitemapIncludeImages' => !empty($row['sitemapIncludeImages']),
+            ]);
+
+            if (!$elements->saveElement($entry, false, false)) {
+                $errors[] = implode(' ', $entry->getErrorSummary(true)) ?: "Entry #{$entryId}";
+            }
         }
 
-        $current = $entry->getFieldValue($fieldHandle);
-        if (!$current instanceof SeoFieldValue) {
-            $current = $field->normalizeValue($current, $entry);
-        }
-        if (!$current instanceof SeoFieldValue) {
-            $current = new SeoFieldValue();
-        }
+        $isAjax = $request->getAcceptsJson() || $request->getIsAjax();
 
-        $entry->setFieldValue($fieldHandle, [
-            'title' => $current->title,
-            'description' => $current->description,
-            'imageId' => $current->imageId,
-            'imageDescription' => $current->imageDescription,
-            'sitemapEnabled' => !empty($row['sitemapEnabled']),
-            'sitemapIncludeImages' => !empty($row['sitemapIncludeImages']),
-        ]);
-
-        $saved = Craft::$app->getElements()->saveElement($entry, false, false);
-        if (!$saved) {
-            $message = implode(' ', $entry->getErrorSummary(true)) ?: 'No se pudo guardar el sitemap.';
-            if ($request->getAcceptsJson() || $request->getIsAjax()) {
+        if (!empty($errors)) {
+            $message = implode('; ', $errors);
+            if ($isAjax) {
                 return $this->asJson(['success' => false, 'message' => $message]);
             }
             Craft::$app->getSession()->setError($message);
             return $this->redirectToPostedUrl();
         }
 
-        if ($request->getAcceptsJson() || $request->getIsAjax()) {
-            return $this->asJson(['success' => true, 'message' => 'Sitemap guardado.']);
+        $message = $saveAll ? 'Sitemap guardado.' : 'Sitemap guardado.';
+        if ($isAjax) {
+            return $this->asJson(['success' => true, 'message' => $message]);
         }
-
-        Craft::$app->getSession()->setNotice('Sitemap guardado.');
+        Craft::$app->getSession()->setNotice($message);
         return $this->redirectToPostedUrl();
     }
 
