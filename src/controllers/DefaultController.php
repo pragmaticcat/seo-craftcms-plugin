@@ -277,83 +277,123 @@ class DefaultController extends Controller
 
     public function actionSitemap(): Response
     {
-        $this->ensureSitemapEntryTypeTable();
+        $request = Craft::$app->getRequest();
         $selectedSite = Cp::requestedSite() ?? Craft::$app->getSites()->getPrimarySite();
         $siteId = (int)$selectedSite->id;
-        $sectionId = (int)Craft::$app->getRequest()->getQueryParam('section', 0);
+        $sectionId = (int)$request->getQueryParam('section', 0);
+        $page = max(1, (int)$request->getQueryParam('page', 1));
+        $perPage = 50;
+
         $sections = $this->getSeoSectionsForSite($siteId, $sectionId);
-        $entryTypeRows = $this->getSitemapEntryTypeRows($siteId);
+
+        $entryQuery = Entry::find()->siteId($siteId)->status(null);
         if ($sectionId) {
-            $entryTypeRows = array_values(array_filter(
-                $entryTypeRows,
-                fn(array $row) => (int)($row['sectionId'] ?? 0) === $sectionId
-            ));
+            $entryQuery->sectionId($sectionId);
         }
-        $splitRows = $this->splitSitemapRowsByPageGroup($entryTypeRows);
+
+        $allRows = [];
+        foreach ($entryQuery->all() as $entry) {
+            foreach ($entry->getFieldLayout()?->getCustomFields() ?? [] as $field) {
+                if (!$field instanceof SeoField) {
+                    continue;
+                }
+                $value = $entry->getFieldValue($field->handle);
+                if (!$value instanceof SeoFieldValue) {
+                    $value = $field->normalizeValue($value, $entry);
+                }
+                if (!$value instanceof SeoFieldValue) {
+                    $value = new SeoFieldValue();
+                }
+                $allRows[] = [
+                    'entry' => $entry,
+                    'fieldHandle' => $field->handle,
+                    'sitemapEnabled' => $value->sitemapEnabled ?? true,
+                    'sitemapIncludeImages' => $value->sitemapIncludeImages ?? false,
+                ];
+                break;
+            }
+        }
+
+        $total = count($allRows);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $rows = array_slice($allRows, ($page - 1) * $perPage, $perPage);
 
         return $this->renderTemplate('pragmatic-seo/sitemap', [
-            'entryTypeRows' => $splitRows['regular'],
-            'pageEntryTypeRows' => $splitRows['page'],
-            'selectedSite' => $selectedSite,
+            'rows' => $rows,
             'sections' => $sections,
             'sectionId' => $sectionId,
+            'selectedSite' => $selectedSite,
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'total' => $total,
+            'perPage' => $perPage,
         ]);
     }
 
     public function actionSaveSitemap(): Response
     {
         $this->requirePostRequest();
-        $this->ensureSitemapEntryTypeTable();
         $request = Craft::$app->getRequest();
-        $elements = Craft::$app->getElements();
-        $siteId = (int)(Cp::requestedSite()?->id ?? Craft::$app->getSites()->getCurrentSite()->id);
-
-        $typeSettings = (array)$request->getBodyParam('entryTypes', []);
-        foreach ($typeSettings as $entryTypeId => $settings) {
-            $this->saveEntryTypeSitemapSettings((int)$entryTypeId, [
-                'enabled' => !empty($settings['enabled']),
-                'includeImages' => !empty($settings['includeImages']),
-            ]);
+        $saveRow = $request->getBodyParam('saveRow');
+        $entries = (array)$request->getBodyParam('entries', []);
+        if ($saveRow === null || !isset($entries[$saveRow])) {
+            throw new BadRequestHttpException('Invalid entry payload.');
         }
 
-        $entryRows = (array)$request->getBodyParam('entries', []);
-        foreach ($entryRows as $entryId => $row) {
-            $entry = Entry::find()
-                ->id((int)$entryId)
-                ->siteId($siteId)
-                ->status(null)
-                ->one();
-            if (!$entry) {
-                continue;
-            }
+        $row = $entries[$saveRow];
+        $entryId = (int)($row['entryId'] ?? 0);
+        $fieldHandle = (string)($row['fieldHandle'] ?? '');
+        $requestedSiteId = (int)$request->getBodyParam('site', 0);
+        if (!$entryId || $fieldHandle === '') {
+            throw new BadRequestHttpException('Missing entry data.');
+        }
 
-            $seoHandle = (string)($row['seoHandle'] ?? '');
-            if ($seoHandle === '') {
-                continue;
-            }
+        $sitesService = Craft::$app->getSites();
+        $siteIds = array_map(fn($site) => (int)$site->id, $sitesService->getAllSites());
+        $siteId = $requestedSiteId && in_array($requestedSiteId, $siteIds, true)
+            ? $requestedSiteId
+            : (int)$sitesService->getCurrentSite()->id;
 
-            $field = $entry->getFieldLayout()?->getFieldByHandle($seoHandle);
-            if (!$field instanceof SeoField) {
-                continue;
-            }
+        $entry = Craft::$app->getElements()->getElementById($entryId, Entry::class, $siteId);
+        if (!$entry) {
+            throw new BadRequestHttpException('Entry not found.');
+        }
 
-            $current = $entry->getFieldValue($seoHandle);
-            if (!$current instanceof SeoFieldValue) {
-                $current = $field->normalizeValue($current, $entry);
-            }
-            if (!$current instanceof SeoFieldValue) {
-                $current = new SeoFieldValue();
-            }
+        $field = $entry->getFieldLayout()?->getFieldByHandle($fieldHandle);
+        if (!$field instanceof SeoField) {
+            throw new BadRequestHttpException('Invalid SEO field for this entry.');
+        }
 
-            $entry->setFieldValue($seoHandle, [
-                'title' => $current->title,
-                'description' => $current->description,
-                'imageId' => $current->imageId,
-                'imageDescription' => $current->imageDescription,
-                'sitemapEnabled' => !empty($row['enabled']),
-                'sitemapIncludeImages' => !empty($row['includeImages']),
-            ]);
-            $elements->saveElement($entry, false, false);
+        $current = $entry->getFieldValue($fieldHandle);
+        if (!$current instanceof SeoFieldValue) {
+            $current = $field->normalizeValue($current, $entry);
+        }
+        if (!$current instanceof SeoFieldValue) {
+            $current = new SeoFieldValue();
+        }
+
+        $entry->setFieldValue($fieldHandle, [
+            'title' => $current->title,
+            'description' => $current->description,
+            'imageId' => $current->imageId,
+            'imageDescription' => $current->imageDescription,
+            'sitemapEnabled' => !empty($row['sitemapEnabled']),
+            'sitemapIncludeImages' => !empty($row['sitemapIncludeImages']),
+        ]);
+
+        $saved = Craft::$app->getElements()->saveElement($entry, false, false);
+        if (!$saved) {
+            $message = implode(' ', $entry->getErrorSummary(true)) ?: 'No se pudo guardar el sitemap.';
+            if ($request->getAcceptsJson() || $request->getIsAjax()) {
+                return $this->asJson(['success' => false, 'message' => $message]);
+            }
+            Craft::$app->getSession()->setError($message);
+            return $this->redirectToPostedUrl();
+        }
+
+        if ($request->getAcceptsJson() || $request->getIsAjax()) {
+            return $this->asJson(['success' => true, 'message' => 'Sitemap guardado.']);
         }
 
         Craft::$app->getSession()->setNotice('Sitemap guardado.');
