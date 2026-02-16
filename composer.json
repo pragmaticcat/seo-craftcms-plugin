@@ -22,7 +22,7 @@
     "email": "oriolnoya@pragmatic.cat"
   },
   "extra": {
-    "handle": "pragmatic-seo-craftcms-plugin",
+    "handle": "pragmatic-seo",
     "class": "pragmatic\\seo\\PragmaticSeo",
     "name": "Pragmatic SEO",
     "developer": "Pragmatic",
